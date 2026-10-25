@@ -125,3 +125,21 @@ export function getMissionaryById(id: string): MissionaryDetails | undefined {
   const missionary = missionaries.find((item) => item.id === id);
   return missionary ? { ...missionary, journey: [...missionary.journey], growingTogether: [...missionary.growingTogether], guesses: [...missionary.guesses], missionDetails: { ...missionary.missionDetails } } : undefined;
 }
+
+export type User = {
+  name: string;
+  email: string;
+};
+
+// Phase 1 mock accounts. Phase 2 replaces signIn with Firebase Auth.
+const mockUsers = [
+  { name: 'Annabelle', email: 'annabelle@example.com', password: 'mission123' },
+  { name: 'Sophia', email: 'sophia@example.com', password: 'elder456' },
+];
+
+/** Check an email and password against the mock accounts. */
+export function signIn(email: string, password: string): User | null {
+  const cleanEmail = email.trim().toLowerCase();
+  const match = mockUsers.find((user) => user.email === cleanEmail && user.password === password);
+  return match ? { name: match.name, email: match.email } : null;
+}
