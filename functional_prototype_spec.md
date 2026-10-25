@@ -132,7 +132,7 @@ Fields: missionary name, your relationship (for example Mom, Sister, Friend), mi
 - **Frame:** iPhone-shaped frame, usable on screen
 - **Functionality:** Four tabs with working interactions (checklists, expandable details, guess game, add appointment, link a missionary, settings toggles)
 - **Color:** Navy, light blue, and white, taken from the paper prototype
-- **Flow (wireframe v2):** Loading screen with scripture, then Home, then a missionary page. Login and account creation were in the paper prototype but are not shown in wireframe v2.
+- **Flow (wireframe v2):** Loading screen with scripture, then Home, then a missionary page. Login and account creation were in the paper prototype but are not shown in wireframe v2. See Open Decisions below for how Phase 1 handles them.
 - **Sample data:** Elder Jacob Thompson-Whitaker (Peru Lima North Mission, pre-mission, brother) and Sister Ana Taylor (Alaska Anchorage Mission, serving, cousin)
 
 ---
@@ -170,15 +170,131 @@ Fields: missionary name, your relationship (for example Mom, Sister, Friend), mi
 
 ## Proposed Technology Stack
 
-| Area                            | Tools                                          |
-| ------------------------------- | ---------------------------------------------- |
-| **Wireframes and prototypes**   | Figma and Claude AI to build out prototypes    |
-| **Frontend**                    | React Native (for iOS and Android), HTML + CSS |
-| **Backend**                     | Firebase (or potentially MongoDB)              |
-| **Hosting and version control** | GitHub                                         |
+| Area                            | Tools                                                                                                                                          |
+| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Wireframes and prototypes**   | Figma and Claude AI to build out prototypes                                                                                                    |
+| **Frontend**                    | React Native with Expo, TypeScript, and Expo Router (for iOS and Android). The browser is used for Phase 1 testing.                            |
+| **Firebase library**            | React Native Firebase (`@react-native-firebase/*`), not the Firebase JS SDK. Needs an Expo development build, so it **cannot run in Expo Go**. |
+| **Backend**                     | Firebase: Authentication (Email/Password) and Firestore                                                                                        |
+| **Hosting and version control** | GitHub                                                                                                                                         |
 
 ### Database Note
 
-- **Recommended:** Firebase (Firestore plus Firebase Auth), for built-in login, easy syncing across family members' phones, and per-family access rules.
-- MongoDB is a workable alternative but would require building a separate backend and authentication.
-- Mission details should be optional, user-entered fields because Church data on assignments is limited.
+- **Decided:** Firebase (Firestore plus Firebase Auth), for built-in login, easy syncing across family members' phones, and per-family access rules. The Firebase project is already created.
+- MongoDB was considered but would require building a separate backend and authentication.
+- Mission details are optional, user-entered fields because Church data on assignments is limited.
+
+---
+
+## Implementation Guide (for Codex)
+
+### Repository layout
+
+The Git repo root is `CS-456-Mission-Minded`. **All app code goes inside the `missionminded` folder.** Run every command from `missionminded`.
+
+```
+CS-456-Mission-Minded/                 (Git repo root)
+|-- functional_prototype_spec.md       (this file)
+|-- README.md
+|-- docs/                              (reference files, add if missing)
+|   |-- MissionMinded_Wireframe_2.html (screens and interactions to match)
+|   `-- Paper_prototypes.pdf           (color palette and original flow)
+`-- missionminded/                     (the Expo app)
+    |-- AGENTS.md
+    |-- app.json
+    |-- package.json
+    |-- src/
+    |   |-- app/                       (Expo Router screens and layouts)
+    |   |-- components/                (create: shared UI pieces)
+    |   |-- data/                      (create: sample data and data layer)
+    |   `-- theme/                     (create: colors, spacing)
+    |-- google-services.json           (NEVER commit, read, or edit)
+    `-- GoogleService-Info.plist       (NEVER commit, read, or edit)
+```
+
+- Do not create app code at the repo root.
+- Do not open, print, or modify the two Firebase config files.
+- `/ios` and `/android` are generated native folders and are git-ignored. Do not edit or commit them.
+
+### What is already set up (do not redo)
+
+- Expo project created with TypeScript and Expo Router. Existing starter files include `src/app/_layout.tsx` and `src/app/index.tsx`. Replace the starter screens and remove unused starter components. Do not run `npm run reset-project` or `npx expo prebuild` unless asked.
+- Installed packages: `expo-dev-client`, `expo-build-properties`, `@react-native-firebase/app`, `@react-native-firebase/auth`, `@react-native-firebase/firestore`.
+- `app.json` has the Firebase config plugin entries and the paths to the two Firebase config files. Do not remove them.
+- Firebase project created, iOS and Android apps registered, Email/Password authentication enabled, Firestore created in production mode.
+- Firebase config files are listed in `.gitignore`.
+
+### Phase 1: Full UI with local sample data (build this first)
+
+**Goal:** A working, clickable app that matches wireframe v2 and runs in the browser.
+
+**Hard rules for Phase 1**
+
+- Do **not** import or use any `@react-native-firebase/*` code. Those packages use native code and will break the browser build.
+- Use local sample data and in-memory state (React Context or a reducer). Data resets on refresh, which is fine.
+- Put all data access behind one module (`src/data/repository.ts`) so Phase 2 can swap in Firestore without rewriting screens.
+- Test with `npx expo start --web` from `missionminded`.
+
+**Suggested Expo Router structure**
+
+| Path                                             | Purpose                                                                                                 |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------------------------- |
+| `src/app/_layout.tsx`                            | Root layout, theme, loading-screen provider                                                             |
+| `src/app/(tabs)/_layout.tsx`                     | Bottom tabs: Home, Calendar, Packing, Profile (in that order)                                           |
+| `src/app/(tabs)/index.tsx`                       | Home                                                                                                    |
+| `src/app/(tabs)/calendar.tsx`                    | Calendar                                                                                                |
+| `src/app/(tabs)/packing.tsx`                     | Packing list                                                                                            |
+| `src/app/(tabs)/profile.tsx`                     | Profile                                                                                                 |
+| `src/app/missionary/[id].tsx`                    | Missionary page (journey, growing together, ponder as a family, guess game, expandable mission details) |
+| `src/app/link-missionary.tsx`                    | Link a Missionary form                                                                                  |
+| `src/app/(auth)/login.tsx`, `create-account.tsx` | Mock login and account screens (see Open Decisions)                                                     |
+
+**Shared pieces to create:** loading screen with a scripture or quote between page transitions, journey stage tracker (Called, Preparing, MTC, Serving, Home), missionary card, checklist item, expandable section, and a theme file.
+
+**Theme:** Navy, light blue, and white from the paper prototype. Take exact values from `docs/Paper_prototypes.pdf` and the CSS in `docs/MissionMinded_Wireframe_2.html`, and put them in `src/theme/`.
+
+**Sample data:** Elder Jacob Thompson-Whitaker and Sister Ana Taylor, as described in the Fidelity section. Mission details must be optional, and missing fields show "Some details aren't released yet."
+
+**Phase 1 is done when**
+
+- All four tabs, the missionary page, and the Link a Missionary form work.
+- Checklists, appointments, the guess game, expandable details, and settings toggles respond to taps.
+- The scripture loading screen shows between pages.
+- The app runs in the browser with no console errors from missing native modules.
+- Nothing in the Not-in-scope list has been built.
+
+### Phase 2: Firebase (only after Phase 1 is approved)
+
+- Replace the data layer with React Native Firebase Auth and Firestore.
+- Requires a development build (`npx expo run:android`, or EAS Build for iOS). Expo Go will not work.
+- Proposed Firestore structure:
+  - `users/{userId}`: name, ward and stake, settings toggles
+  - `users/{userId}/missionaries/{missionaryId}`: name, relationship, mission name, MTC report date, mission length, optional details
+  - Under each missionary: `todos`, `packingChecks`, `growingTogether`, `guesses`
+  - `missions/{missionId}`: shared packing items by climate (read-only for users)
+- Security rules (already published): each signed-in user can read and write only `users/{their uid}/**`. `missions/**` is read-only for signed-in users.
+- Sharing one missionary between family members is **not** supported by these rules. See Open Decisions.
+
+### Open Decisions (assume the default until the team decides)
+
+| Decision                                              | Default for now                                                                        |
+| ----------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| Login and create-account screens in the first version | Build simple mock screens in Phase 1 (no real auth). Wire to Firebase Auth in Phase 2. |
+| Family members sharing one missionary                 | Not supported. Each user's data is private. Revisit before building Phase 2 data.      |
+| Push reminders (the Profile toggles)                  | Toggles only change saved settings. No real notifications yet.                         |
+| iPhone testing                                        | Deferred. Use the browser for Phase 1 and an Android device or emulator for Phase 2.   |
+
+### Security and secrets
+
+- Never commit `google-services.json`, `GoogleService-Info.plist`, `.env` files, Expo access tokens, or any API keys.
+- Do not print the contents of those files or tokens in output or logs.
+- Do not add analytics, ads, or third-party tracking.
+
+### Working agreement
+
+- Work on a branch, for example `codex-prototype`, not directly on `main`.
+- Build one screen or feature at a time. Keep the app runnable after every step.
+- Commit after each screen with a short message.
+- After each step, report what was built, how to run it, and what is next.
+- Ask before adding new dependencies or changing `app.json`.
+- Do not build anything listed under Not in scope or What Can Wait.
