@@ -1,6 +1,7 @@
 import { Link } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { useAuth } from '@/data/auth';
 import { getHomeData, journeyStages, type JourneyStage, type MissionarySummary } from '@/data/repository';
 import { colors, spacing } from '@/theme/colors';
 
@@ -69,6 +70,8 @@ function MissionaryCard({ missionary }: { missionary: MissionarySummary }) {
 }
 
 export default function HomeScreen() {
+  const { user } = useAuth();
+
   return (
     <ScrollView
       style={styles.screen}
@@ -82,7 +85,7 @@ export default function HomeScreen() {
           <Text style={styles.brandName}>MissionMinded</Text>
         </View>
 
-        <Text style={styles.greeting}>Hi, there.</Text>
+        <Text style={styles.greeting}>Hi, {user?.name ?? 'there'}.</Text>
 
         <View style={styles.thoughtCard}>
           <View style={styles.thoughtAccent} />
