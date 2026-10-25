@@ -1,4 +1,5 @@
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Link } from 'expo-router';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { getHomeData, journeyStages, type JourneyStage, type MissionarySummary } from '@/data/repository';
 import { colors, spacing } from '@/theme/colors';
@@ -44,20 +45,26 @@ function JourneyTracker({ currentStage }: { currentStage: JourneyStage }) {
 
 function MissionaryCard({ missionary }: { missionary: MissionarySummary }) {
   return (
-    <View style={styles.missionaryCard}>
-      <View style={styles.missionaryHeading}>
-        <View style={styles.missionaryCopy}>
-          <Text style={styles.missionaryName}>{missionary.name}</Text>
-          <Text style={styles.missionName}>{missionary.missionName}</Text>
+    <Link href={{ pathname: '/missionary/[id]', params: { id: missionary.id } }} asChild prefetch>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`${missionary.name}, ${missionary.status}. View journey.`}
+        style={({ pressed }) => [styles.missionaryCard, pressed && styles.missionaryCardPressed]}>
+        <View style={styles.missionaryHeading}>
+          <View style={styles.missionaryCopy}>
+            <Text style={styles.missionaryName}>{missionary.name}</Text>
+            <Text style={styles.missionName}>{missionary.missionName}</Text>
+          </View>
+          <Text accessibilityElementsHidden style={styles.cardArrow}>›</Text>
         </View>
         <View style={styles.statusPill}>
           <View style={styles.statusDot} />
           <Text style={styles.statusText}>{missionary.status}</Text>
         </View>
-      </View>
-      <View style={styles.trackerDivider} />
-      <JourneyTracker currentStage={missionary.currentStage} />
-    </View>
+        <View style={styles.trackerDivider} />
+        <JourneyTracker currentStage={missionary.currentStage} />
+      </Pressable>
+    </Link>
   );
 }
 
@@ -202,10 +209,23 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
   },
   missionaryHeading: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
     gap: spacing.md,
   },
   missionaryCopy: {
+    flex: 1,
     gap: spacing.xs,
+  },
+  cardArrow: {
+    color: colors.navy,
+    fontSize: 28,
+    lineHeight: 28,
+    marginTop: -4,
+  },
+  missionaryCardPressed: {
+    opacity: 0.82,
   },
   missionaryName: {
     color: colors.navy,
