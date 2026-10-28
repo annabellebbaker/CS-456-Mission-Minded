@@ -1,3 +1,4 @@
+import { Link, type Href } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { TabPlaceholder } from '@/components/tab-placeholder';
@@ -10,6 +11,13 @@ export default function ProfileScreen() {
   return (
     <View style={styles.screen}>
       <TabPlaceholder title="Profile" />
+      <Link href={'/link-missionary' as Href} asChild>
+        <Pressable
+          accessibilityRole="button"
+          style={({ pressed }) => [styles.linkButton, pressed && styles.pressed]}>
+          <Text style={styles.linkText}>Link a missionary</Text>
+        </Pressable>
+      </Link>
       <Pressable
         accessibilityRole="button"
         onPress={signOut}
@@ -35,6 +43,18 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     backgroundColor: '#F0F6FB',
   },
+  linkButton: {
+    minHeight: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.sm,
+    borderWidth: 1.5,
+    borderColor: colors.navy,
+    borderRadius: 10,
+    backgroundColor: '#F0F6FB',
+  },
+  linkText: { color: colors.navy, fontSize: 15, fontWeight: '700' },
   logOutText: {
     color: colors.navy,
     fontSize: 15,

@@ -1,11 +1,10 @@
-import { Link } from 'expo-router';
+import { Link, type Href } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { useAuth } from '@/data/auth';
+import { useMissionaries } from '@/data/missionaries-context';
 import { getHomeData, journeyStages, type JourneyStage, type MissionarySummary } from '@/data/repository';
 import { colors, spacing } from '@/theme/colors';
-
-const homeData = getHomeData();
 
 function JourneyTracker({ currentStage }: { currentStage: JourneyStage }) {
   const activeIndex = journeyStages.indexOf(currentStage);
@@ -71,6 +70,8 @@ function MissionaryCard({ missionary }: { missionary: MissionarySummary }) {
 
 export default function HomeScreen() {
   const { user } = useAuth();
+  const { missionaries } = useMissionaries();
+  const thoughtForToday = getHomeData().thoughtForToday;
 
   return (
     <ScrollView
@@ -91,8 +92,8 @@ export default function HomeScreen() {
           <View style={styles.thoughtAccent} />
           <View style={styles.thoughtCopy}>
             <Text style={styles.sectionEyebrow}>THOUGHT FOR TODAY</Text>
-            <Text style={styles.thoughtText}>“{homeData.thoughtForToday.text}”</Text>
-            <Text style={styles.thoughtReference}>— {homeData.thoughtForToday.reference}</Text>
+            <Text style={styles.thoughtText}>“{thoughtForToday.text}”</Text>
+            <Text style={styles.thoughtReference}>— {thoughtForToday.reference}</Text>
           </View>
         </View>
 
@@ -102,10 +103,17 @@ export default function HomeScreen() {
             <Text style={styles.sectionCaption}>Following their journey</Text>
           </View>
           <View style={styles.cardList}>
-            {homeData.missionaries.map((missionary) => (
+            {missionaries.map((missionary) => (
               <MissionaryCard key={missionary.id} missionary={missionary} />
             ))}
           </View>
+          <Link href={'/link-missionary' as Href} asChild>
+            <Pressable
+              accessibilityRole="button"
+              style={({ pressed }) => [styles.linkButton, pressed && styles.missionaryCardPressed]}>
+              <Text style={styles.linkButtonText}>+ Link a missionary</Text>
+            </Pressable>
+          </Link>
         </View>
       </View>
     </ScrollView>
@@ -203,6 +211,16 @@ const styles = StyleSheet.create({
   cardList: {
     gap: spacing.md,
   },
+  linkButton: {
+    minHeight: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: colors.navy,
+    borderRadius: 12,
+    backgroundColor: '#F0F6FB',
+  },
+  linkButtonText: { color: colors.navy, fontSize: 15, fontWeight: '700' },
   missionaryCard: {
     gap: spacing.md,
     padding: spacing.lg,

@@ -2,6 +2,7 @@ import { Stack } from 'expo-router';
 
 import { ScriptureLoadingOverlay } from '@/components/scripture-loading-overlay';
 import { AuthProvider, useAuth } from '@/data/auth';
+import { MissionariesProvider } from '@/data/missionaries-context';
 
 function RootStack() {
   const { user } = useAuth();
@@ -11,6 +12,7 @@ function RootStack() {
       <Stack.Protected guard={!!user}>
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="missionary/[id]" />
+        <Stack.Screen name="link-missionary" />
       </Stack.Protected>
       <Stack.Protected guard={!user}>
         <Stack.Screen name="(auth)/login" />
@@ -22,8 +24,10 @@ function RootStack() {
 export default function RootLayout() {
   return (
     <AuthProvider>
-      <RootStack />
-      <ScriptureLoadingOverlay />
+      <MissionariesProvider>
+        <RootStack />
+        <ScriptureLoadingOverlay />
+      </MissionariesProvider>
     </AuthProvider>
   );
 }

@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { Link, useLocalSearchParams } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { getMissionaryById, type GrowingTogetherItem, type JourneyMilestone } from '@/data/repository';
+import { useMissionaries } from '@/data/missionaries-context';
+import { type GrowingTogetherItem, type JourneyMilestone } from '@/data/repository';
 import { colors, spacing } from '@/theme/colors';
 
 const unavailableDetail = "Some details aren't released yet.";
@@ -74,7 +75,9 @@ function ChecklistRow({
 
 export default function MissionaryScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const missionary = getMissionaryById(Array.isArray(id) ? id[0] : id);
+  const { missionaries } = useMissionaries();
+  const missionaryId = Array.isArray(id) ? id[0] : id;
+  const missionary = missionaries.find((item) => item.id === missionaryId);
   const [detailsExpanded, setDetailsExpanded] = useState(false);
   const [completedItems, setCompletedItems] = useState<Record<string, boolean>>({});
   const [guesses, setGuesses] = useState(() => missionary?.guesses ?? []);

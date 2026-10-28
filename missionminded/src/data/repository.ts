@@ -8,6 +8,9 @@ export type MissionarySummary = {
   missionName: string;
   status: string;
   currentStage: JourneyStage;
+  relationship?: string;
+  mtcReportDate?: string;
+  missionLengthMonths?: string;
 };
 
 export type JourneyMilestone = {
@@ -124,6 +127,66 @@ export function getHomeData() {
 export function getMissionaryById(id: string): MissionaryDetails | undefined {
   const missionary = missionaries.find((item) => item.id === id);
   return missionary ? { ...missionary, journey: [...missionary.journey], growingTogether: [...missionary.growingTogether], guesses: [...missionary.guesses], missionDetails: { ...missionary.missionDetails } } : undefined;
+}
+
+/** Return fresh local sample profiles for Phase 1 state. */
+export function getInitialMissionaries(): MissionaryDetails[] {
+  return missionaries.map((missionary) => ({
+    ...missionary,
+    journey: missionary.journey.map((milestone) => ({ ...milestone })),
+    growingTogether: missionary.growingTogether.map((item) => ({ ...item })),
+    guesses: missionary.guesses.map((guess) => ({ ...guess })),
+    missionDetails: { ...missionary.missionDetails },
+  }));
+}
+
+export type NewMissionary = {
+  id: string;
+  name: string;
+  relationship: string;
+  missionName: string;
+  mtcReportDate: string;
+  missionLengthMonths: string;
+};
+
+/** Build a locally linked profile. Unknown dates and mission length may remain blank. */
+export function createMissionaryProfile(input: NewMissionary): MissionaryDetails {
+  const cleanName = input.name.trim();
+  const givenName = cleanName.replace(/^(elder|sister|brother)\s+/i, '').split(/\s+/)[0] ?? cleanName;
+  const mtcDate = input.mtcReportDate.trim();
+  const mtcMilestone = mtcDate
+    ? `Enters the MTC (${mtcDate})`
+    : 'Enters the MTC';
+
+  return {
+    id: input.id,
+    name: cleanName,
+    firstName: givenName,
+    missionName: input.missionName.trim() || 'Mission details can be added later',
+    status: 'Preparing to serve',
+    currentStage: 'Preparing',
+    relationship: input.relationship.trim(),
+    mtcReportDate: input.mtcReportDate.trim() || undefined,
+    missionLengthMonths: input.missionLengthMonths.trim() || undefined,
+    phase: 'pre-mission',
+    language: 'Details coming later',
+    journey: [
+      { title: 'Missionary linked', description: 'Your journey together starts here', state: 'complete' },
+      { title: 'Preparing to serve', description: 'Getting ready for the mission', state: 'current' },
+      { title: mtcMilestone, description: mtcDate || 'Date can be added later', state: 'upcoming' },
+      { title: 'Begins service', description: 'More details can be added later', state: 'upcoming' },
+      { title: 'Returns home', description: 'More details can be added later', state: 'upcoming' },
+    ],
+    growingTogetherIntro: 'Choose a simple way to support your missionary this week:',
+    growingTogether: [
+      { id: `pray-${input.id}`, title: `Pray for ${cleanName}`, description: 'Remember them in family prayer' },
+      { id: `study-${input.id}`, title: 'Read a scripture together', description: 'Choose a passage as a family' },
+    ],
+    ponderText: 'Wherefore, if ye have desires to serve God ye are called to the work.',
+    ponderReference: 'Doctrine and Covenants 4:3',
+    guesses: [],
+    missionDetails: { companion: null, area: null, leaders: null, office: null, phone: null, email: null },
+  };
 }
 
 export type User = {
