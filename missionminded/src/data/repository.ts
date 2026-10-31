@@ -1,3 +1,5 @@
+import missionBoundaries from '@/data/mission-boundaries.json';
+
 export const journeyStages = ['Called', 'Preparing', 'MTC', 'Serving', 'Home'] as const;
 
 export type JourneyStage = (typeof journeyStages)[number];
@@ -24,6 +26,8 @@ export type GrowingTogetherItem = {
 
 export type MissionaryDetails = MissionarySummary & {
   firstName: string;
+  /** Key into mission-boundaries.json. Regenerate with `npm run boundaries`. */
+  missionId: string;
   phase: 'pre-mission' | 'serving';
   language: string;
   journey: JourneyMilestone[];
@@ -52,6 +56,7 @@ const missionaries: MissionaryDetails[] = [
     id: 'jacob',
     name: 'Elder Jacob Thompson-Whitaker',
     firstName: 'Jacob',
+    missionId: 'peru-lima-north',
     missionName: 'Peru Lima North Mission',
     status: 'Preparing to serve',
     currentStage: 'Preparing',
@@ -82,6 +87,7 @@ const missionaries: MissionaryDetails[] = [
     id: 'ana',
     name: 'Sister Ana Taylor',
     firstName: 'Ana',
+    missionId: 'alaska-anchorage',
     missionName: 'Alaska Anchorage Mission',
     status: 'Serving in Wasilla',
     currentStage: 'Serving',
@@ -124,6 +130,21 @@ export function getHomeData() {
 export function getMissionaryById(id: string): MissionaryDetails | undefined {
   const missionary = missionaries.find((item) => item.id === id);
   return missionary ? { ...missionary, journey: [...missionary.journey], growingTogether: [...missionary.growingTogether], guesses: [...missionary.guesses], missionDetails: { ...missionary.missionDetails } } : undefined;
+}
+
+export type MissionBoundary = {
+  name: string;
+  areas: string[];
+  approximate: boolean;
+  /** [west, south, east, north] in degrees. West can be below -180 for date-line missions. */
+  bbox: [number, number, number, number];
+  geometry: { type: 'MultiPolygon'; coordinates: number[][][][] };
+};
+
+/** Mission outline built from OpenStreetMap admin areas, or undefined if not mapped yet. */
+export function getMissionBoundary(missionId: string): MissionBoundary | undefined {
+  const missions = missionBoundaries.missions as unknown as Record<string, MissionBoundary>;
+  return missions[missionId];
 }
 
 export type User = {

@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { Link, useLocalSearchParams } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { getMissionaryById, type GrowingTogetherItem, type JourneyMilestone } from '@/data/repository';
+import { MissionMap } from '@/components/mission-map';
+import { getMissionaryById, getMissionBoundary, type GrowingTogetherItem, type JourneyMilestone } from '@/data/repository';
 import { colors, spacing } from '@/theme/colors';
 
 const unavailableDetail = "Some details aren't released yet.";
@@ -103,6 +104,7 @@ export default function MissionaryScreen() {
   };
 
   const details = missionary.missionDetails;
+  const boundary = getMissionBoundary(missionary.missionId);
 
   return (
     <ScrollView
@@ -210,14 +212,13 @@ export default function MissionaryScreen() {
 
         {detailsExpanded && (
           <View style={styles.detailsContent}>
-            <View style={styles.mapPlaceholder}>
-              <View style={styles.mapGridVertical} />
-              <View style={styles.mapGridHorizontal} />
-              <View style={styles.mapMarker} />
-              <View style={styles.mapLabel}>
-                <Text style={styles.mapLabelText}>Mission map</Text>
+            {boundary ? (
+              <MissionMap boundary={boundary} />
+            ) : (
+              <View style={styles.mapPlaceholder}>
+                <Text style={styles.mutedText}>Map coming soon for this mission.</Text>
               </View>
-            </View>
+            )}
             <View style={styles.detailGrid}>
               <View style={styles.detailTile}>
                 <DetailValue label="COMPANION" value={details.companion} />
@@ -425,11 +426,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: '#EAF2F8',
   },
-  mapGridVertical: { position: 'absolute', width: '140%', height: 1, backgroundColor: '#C3D4E2', transform: [{ rotate: '32deg' }] },
-  mapGridHorizontal: { position: 'absolute', width: '140%', height: 1, backgroundColor: '#C3D4E2', transform: [{ rotate: '-26deg' }] },
-  mapMarker: { width: 12, height: 12, borderWidth: 2, borderColor: colors.white, borderRadius: 8, backgroundColor: colors.navy },
-  mapLabel: { position: 'absolute', left: spacing.md, bottom: spacing.md, paddingHorizontal: spacing.sm, paddingVertical: 5, borderRadius: 6, backgroundColor: colors.white },
-  mapLabelText: { color: colors.navy, fontSize: 12, fontWeight: '600' },
   detailGrid: { flexDirection: 'row', gap: spacing.sm },
   detailTile: { flex: 1, padding: spacing.md, borderWidth: 1, borderColor: '#D6DEE6', borderRadius: 12, backgroundColor: colors.white },
   detailPanel: { gap: spacing.md, padding: spacing.md, borderWidth: 1, borderColor: '#D6DEE6', borderRadius: 12, backgroundColor: colors.white },
