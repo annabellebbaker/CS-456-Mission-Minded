@@ -6,6 +6,7 @@ export type MissionarySummary = {
   id: string;
   name: string;
   missionName: string;
+  missionId?: string;
   status: string;
   currentStage: JourneyStage;
   relationship?: string;
@@ -17,6 +18,7 @@ export type JourneyMilestone = {
   title: string;
   description: string;
   state: 'complete' | 'current' | 'upcoming';
+  date?: string;
 };
 
 export type GrowingTogetherItem = {
@@ -56,6 +58,7 @@ const missionaries: MissionaryDetails[] = [
     name: 'Elder Jacob Thompson-Whitaker',
     firstName: 'Jacob',
     missionName: 'Peru Lima North Mission',
+    missionId: 'peru-lima-north',
     status: 'Preparing to serve',
     currentStage: 'Preparing',
     relationship: 'Brother',
@@ -87,6 +90,7 @@ const missionaries: MissionaryDetails[] = [
     name: 'Sister Ana Taylor',
     firstName: 'Ana',
     missionName: 'Alaska Anchorage Mission',
+    missionId: 'alaska-anchorage',
     status: 'Serving in Wasilla',
     currentStage: 'Serving',
     relationship: 'Cousin',
@@ -151,11 +155,44 @@ export type NewMissionary = {
   missionLengthMonths: string;
 };
 
+export type PackingSuggestion = { id: string; missionId: string; title: string };
+
+const packingSuggestions: PackingSuggestion[] = [
+  { id: 'peru-bottle', missionId: 'peru-lima-north', title: 'Reusable water bottle' },
+  { id: 'peru-day-bag', missionId: 'peru-lima-north', title: 'Small day bag' },
+  { id: 'alaska-socks', missionId: 'alaska-anchorage', title: 'Extra warm socks' },
+  { id: 'alaska-rain-layer', missionId: 'alaska-anchorage', title: 'Packable rain layer' },
+];
+
+/** Return local preview suggestions whose mission ID exactly matches. */
+export function getPackingSuggestions(missionId: string | undefined): PackingSuggestion[] {
+  if (!missionId) return [];
+  return packingSuggestions.filter((suggestion) => suggestion.missionId === missionId);
+}
+
 /** Build a locally linked profile. Unknown dates and mission length may remain blank. */
 export function createMissionaryProfile(input: NewMissionary): MissionaryDetails {
   const cleanName = input.name.trim();
+  const cleanMissionName = input.missionName.trim();
+  const knownMission = missionaries.find(
+    (missionary) => missionary.missionName.toLowerCase() === cleanMissionName.toLowerCase(),
+  );
+  const missionId = knownMission?.missionId ?? (cleanMissionName
+    ? cleanMissionName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+    : undefined);
   const givenName = cleanName.replace(/^(elder|sister|brother)\s+/i, '').split(/\s+/)[0] ?? cleanName;
   const mtcDate = input.mtcReportDate.trim();
+  const mtcDateMatch = mtcDate.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  const mtcDateParts = mtcDateMatch?.slice(1).map(Number);
+  const mtcDateObject = mtcDateParts
+    ? new Date(mtcDateParts[0], mtcDateParts[1] - 1, mtcDateParts[2])
+    : undefined;
+  const validMtcDate = mtcDateMatch && mtcDateObject
+    && mtcDateObject.getFullYear() === mtcDateParts?.[0]
+    && mtcDateObject.getMonth() === (mtcDateParts?.[1] ?? 1) - 1
+    && mtcDateObject.getDate() === mtcDateParts?.[2]
+    ? mtcDate
+    : undefined;
   const mtcMilestone = mtcDate
     ? `Enters the MTC (${mtcDate})`
     : 'Enters the MTC';
@@ -164,7 +201,8 @@ export function createMissionaryProfile(input: NewMissionary): MissionaryDetails
     id: input.id,
     name: cleanName,
     firstName: givenName,
-    missionName: input.missionName.trim() || 'Mission details can be added later',
+    missionName: cleanMissionName || 'Mission details can be added later',
+    missionId,
     status: 'Preparing to serve',
     currentStage: 'Preparing',
     relationship: input.relationship.trim(),
@@ -175,7 +213,7 @@ export function createMissionaryProfile(input: NewMissionary): MissionaryDetails
     journey: [
       { title: 'Missionary linked', description: 'Your journey together starts here', state: 'complete' },
       { title: 'Preparing to serve', description: 'Getting ready for the mission', state: 'current' },
-      { title: mtcMilestone, description: mtcDate || 'Date can be added later', state: 'upcoming' },
+      { title: mtcMilestone, description: mtcDate || 'Date can be added later', state: 'upcoming', date: validMtcDate },
       { title: 'Begins service', description: 'More details can be added later', state: 'upcoming' },
       { title: 'Returns home', description: 'More details can be added later', state: 'upcoming' },
     ],

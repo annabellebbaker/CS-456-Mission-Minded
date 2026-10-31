@@ -8,7 +8,13 @@ import { colors, spacing } from '@/theme/colors';
 
 const unavailableDetail = "Some details aren't released yet.";
 
-function JourneyTimeline({ milestones }: { milestones: JourneyMilestone[] }) {
+function JourneyTimeline({
+  milestones,
+  onChangeDate,
+}: {
+  milestones: JourneyMilestone[];
+  onChangeDate: (index: number, date: string) => void;
+}) {
   return (
     <View style={styles.timeline}>
       {milestones.map((milestone, index) => {
@@ -30,6 +36,17 @@ function JourneyTimeline({ milestones }: { milestones: JourneyMilestone[] }) {
             <View style={styles.timelineCopy}>
               <Text style={[styles.timelineTitle, current && styles.currentText]}>{milestone.title}</Text>
               <Text style={styles.mutedText}>{milestone.description}</Text>
+              {milestone.state !== 'complete' && (
+                <TextInput
+                  accessibilityLabel={`Date for ${milestone.title}`}
+                  value={milestone.date ?? ''}
+                  onChangeText={(date) => onChangeDate(index, date)}
+                  placeholder="Set date (YYYY-MM-DD)"
+                  placeholderTextColor="#6F7C88"
+                  returnKeyType="done"
+                  style={styles.milestoneDateInput}
+                />
+              )}
             </View>
           </View>
         );
@@ -75,7 +92,7 @@ function ChecklistRow({
 
 export default function MissionaryScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { missionaries } = useMissionaries();
+  const { missionaries, updateMilestoneDate } = useMissionaries();
   const missionaryId = Array.isArray(id) ? id[0] : id;
   const missionary = missionaries.find((item) => item.id === missionaryId);
   const [detailsExpanded, setDetailsExpanded] = useState(false);
@@ -130,7 +147,10 @@ export default function MissionaryScreen() {
 
         <View style={styles.sectionCard}>
           <Text style={styles.sectionEyebrow}>THEIR JOURNEY</Text>
-          <JourneyTimeline milestones={missionary.journey} />
+          <JourneyTimeline
+            milestones={missionary.journey}
+            onChangeDate={(index, date) => updateMilestoneDate(missionary.id, index, date)}
+          />
         </View>
 
         <View style={styles.sectionCard}>
@@ -327,6 +347,7 @@ const styles = StyleSheet.create({
   timelineDotCurrent: { borderWidth: 2, borderColor: colors.navy, backgroundColor: colors.lightBlue },
   timelineLine: { width: 1, flex: 1, minHeight: 20, backgroundColor: '#CCD5DE' },
   timelineCopy: { flex: 1, paddingBottom: spacing.md, gap: 3 },
+  milestoneDateInput: { alignSelf: 'flex-start', minWidth: 160, minHeight: 38, marginTop: spacing.xs, paddingHorizontal: spacing.sm, borderWidth: 1, borderColor: '#D6DEE6', borderRadius: 8, color: colors.text, fontSize: 13 },
   timelineTitle: { color: colors.text, fontSize: 15, fontWeight: '600' },
   currentText: { color: colors.navy, fontWeight: '700' },
   mutedText: { color: colors.textSecondary, fontSize: 13, lineHeight: 19 },

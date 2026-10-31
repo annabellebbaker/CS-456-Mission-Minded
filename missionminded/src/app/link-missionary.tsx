@@ -78,7 +78,7 @@ export default function LinkMissionaryScreen() {
             label="MTC report date"
             value={mtcReportDate}
             onChangeText={setMtcReportDate}
-            placeholder="For example, Jan 12, 2027"
+            placeholder="YYYY-MM-DD"
           />
           <FormField
             label="Mission length in months"

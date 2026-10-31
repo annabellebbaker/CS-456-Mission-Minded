@@ -1,25 +1,26 @@
-import { useState } from 'react';
 import { router, type Href } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { useAuth } from '@/data/auth';
 import { useMissionaries } from '@/data/missionaries-context';
+import { useNotifications } from '@/data/notification-context';
 import { colors, spacing } from '@/theme/colors';
-
-const initialSettings = {
-  dailyThought: true,
-  milestones: true,
-  prayer: false,
-};
 
 export default function ProfileScreen() {
   const { user, signOut } = useAuth();
   const { missionaries } = useMissionaries();
-  const [settings, setSettings] = useState(initialSettings);
-
-  const toggleSetting = (key: keyof typeof initialSettings, value: boolean) => {
-    setSettings((current) => ({ ...current, [key]: value }));
-  };
+  const { status: notificationStatus, enableNotifications } = useNotifications();
+  const notificationsEnabled = notificationStatus === 'enabled';
+  const notificationsUnavailable = notificationStatus === 'unavailable';
+  const notificationButtonLabel = notificationsEnabled
+    ? 'Notifications enabled'
+    : notificationsUnavailable
+      ? 'Available in the iOS app'
+      : notificationStatus === 'checking'
+        ? 'Checking notification access…'
+        : notificationStatus === 'error'
+          ? 'Try again'
+          : 'Enable push notifications';
 
   return (
     <ScrollView
@@ -36,11 +37,6 @@ export default function ProfileScreen() {
           <Text style={styles.sectionLabel}>YOUR PROFILE</Text>
           <Text style={styles.supporterName}>{user?.name ?? 'Supporter'}</Text>
           <Text style={styles.mutedText}>{user?.email ?? 'Signed in'}</Text>
-          <View style={styles.divider} />
-          <View style={styles.profileDetail}>
-            <Text style={styles.detailLabel}>WARD AND STAKE</Text>
-            <Text style={styles.mutedText}>Can be added later</Text>
-          </View>
         </View>
 
         <View style={styles.card}>
@@ -62,28 +58,35 @@ export default function ProfileScreen() {
 
         <View style={styles.card}>
           <View style={styles.sectionHeading}>
-            <Text style={styles.sectionLabel}>REMINDERS</Text>
-            <Text style={styles.mutedText}>These settings are saved for this session only.</Text>
+            <Text style={styles.sectionLabel}>PUSH NOTIFICATIONS</Text>
+            <Text style={styles.settingTitle}>Appointments and milestones</Text>
+            <Text style={styles.mutedText}>Get a heads-up one day before an appointment and when a milestone is coming up.</Text>
           </View>
-          <SettingRow
-            label="Daily scripture thought"
-            description="A gentle reminder to read the thought for today."
-            value={settings.dailyThought}
-            onChange={(value) => toggleSetting('dailyThought', value)}
-          />
-          <SettingRow
-            label="Milestone reminders"
-            description="Remember important moments in their journey."
-            value={settings.milestones}
-            onChange={(value) => toggleSetting('milestones', value)}
-          />
-          <SettingRow
-            label="Prayer reminders"
-            description="Make time to pray for your missionary."
-            value={settings.prayer}
-            onChange={(value) => toggleSetting('prayer', value)}
-            last
-          />
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{
+              disabled: notificationsEnabled || notificationsUnavailable || notificationStatus === 'checking',
+            }}
+            disabled={notificationsEnabled || notificationsUnavailable || notificationStatus === 'checking'}
+            onPress={() => void enableNotifications()}
+            style={({ pressed }) => [
+              styles.notificationButton,
+              (notificationsEnabled || notificationsUnavailable || notificationStatus === 'checking') && styles.notificationButtonDisabled,
+              pressed && styles.pressed,
+            ]}>
+            <Text style={[styles.notificationButtonText, (notificationsEnabled || notificationsUnavailable || notificationStatus === 'checking') && styles.notificationButtonTextDisabled]}>
+              {notificationButtonLabel}
+            </Text>
+          </Pressable>
+          <Text style={styles.mutedText}>
+            {notificationsEnabled
+              ? 'This device will remind you one day before appointments and milestones with dates. These are on-device notifications; shared remote alerts need a server.'
+              : notificationsUnavailable
+                ? 'Enable this from an iOS development build. The browser preview does not support native notifications.'
+                : notificationStatus === 'denied'
+                  ? 'Allow notifications in iOS Settings if permission was denied earlier.'
+                  : 'On-device reminders are scheduled one day before appointments and milestones with dates.'}
+          </Text>
         </View>
 
         <View style={styles.actions}>
@@ -105,36 +108,6 @@ export default function ProfileScreen() {
   );
 }
 
-function SettingRow({
-  label,
-  description,
-  value,
-  onChange,
-  last,
-}: {
-  label: string;
-  description: string;
-  value: boolean;
-  onChange: (value: boolean) => void;
-  last?: boolean;
-}) {
-  return (
-    <View style={[styles.settingRow, !last && styles.rowDivider]}>
-      <View style={styles.settingCopy}>
-        <Text style={styles.settingTitle}>{label}</Text>
-        <Text style={styles.mutedText}>{description}</Text>
-      </View>
-      <Switch
-        accessibilityLabel={label}
-        value={value}
-        onValueChange={onChange}
-        trackColor={{ false: '#C8D0D8', true: colors.lightBlue }}
-        thumbColor={colors.white}
-      />
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.white },
   scrollContent: { flexGrow: 1, paddingHorizontal: spacing.lg, paddingTop: spacing.xl, paddingBottom: spacing.xxl },
@@ -146,18 +119,17 @@ const styles = StyleSheet.create({
   sectionLabel: { color: colors.textSecondary, fontSize: 12, fontWeight: '700', letterSpacing: 0.8 },
   supporterName: { color: colors.navy, fontSize: 20, fontWeight: '700' },
   mutedText: { color: colors.textSecondary, fontSize: 13, lineHeight: 19 },
-  divider: { height: 1, marginVertical: spacing.xs, backgroundColor: '#E5E9ED' },
-  profileDetail: { gap: spacing.xs },
-  detailLabel: { color: colors.textSecondary, fontSize: 11, fontWeight: '700', letterSpacing: 0.6 },
   card: { gap: spacing.md, padding: spacing.lg, borderWidth: 1, borderColor: '#D6DEE6', borderRadius: 14 },
   sectionHeading: { gap: spacing.xs },
   missionaryRow: { minHeight: 58, flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.sm },
+  rowDivider: { borderTopWidth: 1, borderTopColor: '#E7EBEF' },
   missionaryCopy: { flex: 1, gap: 2 },
   missionaryName: { color: colors.navy, fontSize: 14, fontWeight: '700' },
-  settingRow: { minHeight: 72, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.md, paddingVertical: spacing.sm },
-  settingCopy: { flex: 1, gap: 2 },
   settingTitle: { color: colors.text, fontSize: 14, fontWeight: '600' },
-  rowDivider: { borderBottomWidth: 1, borderBottomColor: '#E7EBEF' },
+  notificationButton: { minHeight: 46, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.md, borderRadius: 9, backgroundColor: colors.navy },
+  notificationButtonDisabled: { backgroundColor: '#E8EEF3' },
+  notificationButtonText: { color: colors.white, fontSize: 14, fontWeight: '700' },
+  notificationButtonTextDisabled: { color: colors.navy },
   actions: { width: '100%', gap: spacing.sm },
   actionButton: {
     width: '100%',
