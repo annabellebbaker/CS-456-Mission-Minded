@@ -58,6 +58,7 @@ const missionaries: MissionaryDetails[] = [
     missionName: 'Peru Lima North Mission',
     status: 'Preparing to serve',
     currentStage: 'Preparing',
+    relationship: 'Brother',
     phase: 'pre-mission',
     language: 'Spanish-speaking',
     journey: [
@@ -88,6 +89,7 @@ const missionaries: MissionaryDetails[] = [
     missionName: 'Alaska Anchorage Mission',
     status: 'Serving in Wasilla',
     currentStage: 'Serving',
+    relationship: 'Cousin',
     phase: 'serving',
     language: 'English-speaking',
     journey: [
