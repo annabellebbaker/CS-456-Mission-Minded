@@ -8,9 +8,9 @@ import { colors } from '@/theme/colors';
 type TabIconName = NonNullable<SymbolViewProps['name']>;
 
 function tabIcon(name: TabIconName) {
-  return ({ color }: { color: ColorValue }) => (
-    <SymbolView name={name} tintColor={color ?? colors.textSecondary} size={22} />
-  );
+  return function TabIcon({ color }: { color: ColorValue }) {
+    return <SymbolView name={name} tintColor={color ?? colors.textSecondary} size={22} />;
+  };
 }
 
 export default function TabLayout() {

@@ -1,39 +1,77 @@
 import { useState } from 'react';
-import { Link, useLocalSearchParams } from 'expo-router';
+import { Link, router, useLocalSearchParams } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { MissionMap } from '@/components/mission-map';
-import { getMissionaryById, getMissionBoundary, type GrowingTogetherItem, type JourneyMilestone } from '@/data/repository';
+import { PhaseTracker } from '@/components/phase-tracker';
+import { useMissionaries } from '@/data/missionaries';
+import {
+  getMissionBoundary,
+  missionPhases,
+  phaseInfo,
+  type GrowingTogetherItem,
+  type MissionaryDetails,
+  type Milestone,
+  type MissionPhase,
+} from '@/data/repository';
 import { colors, spacing } from '@/theme/colors';
 
 const unavailableDetail = "Some details aren't released yet.";
 
-function JourneyTimeline({ milestones }: { milestones: JourneyMilestone[] }) {
-  return (
-    <View style={styles.timeline}>
-      {milestones.map((milestone, index) => {
-        const current = milestone.state === 'current';
-        const complete = milestone.state === 'complete';
+/** The headline card: which phase the missionary is in right now. */
+function PhaseCard({ missionary }: { missionary: MissionaryDetails }) {
+  const info = phaseInfo[missionary.phase];
 
-        return (
-          <View key={`${milestone.title}-${index}`} style={styles.timelineRow}>
-            <View style={styles.timelineRail}>
-              <View
-                style={[
-                  styles.timelineDot,
-                  complete && styles.timelineDotComplete,
-                  current && styles.timelineDotCurrent,
-                ]}
-              />
-              {index < milestones.length - 1 && <View style={styles.timelineLine} />}
-            </View>
-            <View style={styles.timelineCopy}>
-              <Text style={[styles.timelineTitle, current && styles.currentText]}>{milestone.title}</Text>
-              <Text style={styles.mutedText}>{milestone.description}</Text>
-            </View>
+  return (
+    <View style={styles.phaseCard}>
+      <Text style={styles.phaseEyebrow}>RIGHT NOW</Text>
+      <Text style={styles.phaseLabel}>{info.label}</Text>
+      <Text style={styles.phaseSummary}>{info.summary}</Text>
+      <Text style={styles.phaseSince}>{missionary.phaseSince}</Text>
+      <View style={styles.phaseDivider} />
+      <PhaseTracker phase={missionary.phase} onDark />
+    </View>
+  );
+}
+
+function MilestoneRow({ milestone }: { milestone: Milestone }) {
+  return (
+    <View style={styles.milestoneRow}>
+      <View style={[styles.milestoneMark, milestone.done && styles.milestoneMarkDone]}>
+        {milestone.done && <Text style={styles.milestoneCheck}>✓</Text>}
+      </View>
+      <View style={styles.milestoneCopy}>
+        <Text style={[styles.milestoneTitle, milestone.done && styles.milestoneTitleDone]}>{milestone.title}</Text>
+        <Text style={styles.mutedText}>{milestone.description}</Text>
+      </View>
+      {milestone.when && <Text style={styles.milestoneWhen}>{milestone.when}</Text>}
+    </View>
+  );
+}
+
+/** Smaller moments, grouped under the phase they belong to. */
+function MilestoneList({ milestones, currentPhase }: { milestones: Milestone[]; currentPhase: MissionPhase }) {
+  const groups = missionPhases
+    .map((phase) => ({ phase, items: milestones.filter((milestone) => milestone.phase === phase) }))
+    .filter((group) => group.items.length > 0);
+
+  return (
+    <View style={styles.milestoneGroups}>
+      {groups.map(({ phase, items }) => (
+        <View key={phase} style={styles.milestoneGroup}>
+          <View style={styles.milestoneGroupHeading}>
+            <Text style={styles.milestoneGroupLabel}>{phaseInfo[phase].label}</Text>
+            {phase === currentPhase && (
+              <View style={styles.nowPill}>
+                <Text style={styles.nowPillText}>Now</Text>
+              </View>
+            )}
           </View>
-        );
-      })}
+          {items.map((milestone) => (
+            <MilestoneRow key={milestone.title} milestone={milestone} />
+          ))}
+        </View>
+      ))}
     </View>
   );
 }
@@ -75,7 +113,8 @@ function ChecklistRow({
 
 export default function MissionaryScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const missionary = getMissionaryById(Array.isArray(id) ? id[0] : id);
+  const { getById } = useMissionaries();
+  const missionary = getById(Array.isArray(id) ? id[0] : id);
   const [detailsExpanded, setDetailsExpanded] = useState(false);
   const [completedItems, setCompletedItems] = useState<Record<string, boolean>>({});
   const [guesses, setGuesses] = useState(() => missionary?.guesses ?? []);
@@ -105,6 +144,8 @@ export default function MissionaryScreen() {
 
   const details = missionary.missionDetails;
   const boundary = getMissionBoundary(missionary.missionId);
+  // Before the call is opened, keep the mission a surprise for the guess game.
+  const callHidden = missionary.phase === 'preparing' && !callRevealed;
 
   return (
     <ScrollView
@@ -112,24 +153,27 @@ export default function MissionaryScreen() {
       contentContainerStyle={styles.scrollContent}
       showsVerticalScrollIndicator={false}>
       <View style={styles.content}>
-        <Link href="/" asChild>
-          <Pressable accessibilityRole="button" style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}>
-            <Text style={styles.backText}>‹  Home</Text>
-          </Pressable>
-        </Link>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
+          style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}>
+          <Text style={styles.backText}>‹  Back</Text>
+        </Pressable>
 
         <View style={styles.missionaryHeader}>
           <Text style={styles.pageTitle}>{missionary.name}</Text>
-          <Text style={styles.missionName}>{missionary.missionName}</Text>
+          <Text style={styles.missionName}>{callHidden ? 'Mission call on its way' : missionary.missionName}</Text>
           <View style={styles.statusPill}>
             <View style={styles.statusDot} />
             <Text style={styles.statusText}>{missionary.status}</Text>
           </View>
         </View>
 
+        <PhaseCard missionary={missionary} />
+
         <View style={styles.sectionCard}>
-          <Text style={styles.sectionEyebrow}>THEIR JOURNEY</Text>
-          <JourneyTimeline milestones={missionary.journey} />
+          <Text style={styles.sectionEyebrow}>MOMENTS ALONG THE WAY</Text>
+          <MilestoneList milestones={missionary.milestones} currentPhase={missionary.phase} />
         </View>
 
         <View style={styles.sectionCard}>
@@ -152,7 +196,7 @@ export default function MissionaryScreen() {
           </View>
         </View>
 
-        {missionary.phase === 'pre-mission' && (
+        {missionary.phase === 'preparing' && (
           <View style={styles.sectionCard}>
             <Text style={styles.cardTitle}>Where is {missionary.firstName} going?</Text>
             <Text style={styles.mutedText}>Family and friends can add guesses before the call is opened.</Text>
@@ -212,11 +256,13 @@ export default function MissionaryScreen() {
 
         {detailsExpanded && (
           <View style={styles.detailsContent}>
-            {boundary ? (
+            {boundary && !callHidden ? (
               <MissionMap boundary={boundary} />
             ) : (
               <View style={styles.mapPlaceholder}>
-                <Text style={styles.mutedText}>Map coming soon for this mission.</Text>
+                <Text style={styles.mutedText}>
+                  {callHidden ? 'The map appears once the call is opened.' : 'Map coming soon for this mission.'}
+                </Text>
               </View>
             )}
             <View style={styles.detailGrid}>
@@ -309,24 +355,41 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
   },
   sectionEyebrow: { color: colors.textSecondary, fontSize: 12, fontWeight: '700', letterSpacing: 0.8 },
-  timeline: { gap: 0 },
-  timelineRow: { flexDirection: 'row', gap: spacing.md, minHeight: 58 },
-  timelineRail: { alignItems: 'center', width: 16 },
-  timelineDot: {
-    width: 14,
-    height: 14,
-    marginTop: 3,
+  phaseCard: { gap: spacing.xs, padding: spacing.lg, borderRadius: 16, backgroundColor: colors.navy },
+  phaseEyebrow: { color: '#9FB6CC', fontSize: 12, fontWeight: '700', letterSpacing: 0.8 },
+  phaseLabel: { color: colors.white, fontSize: 30, fontWeight: '800' },
+  phaseSummary: { color: colors.white, fontSize: 15, lineHeight: 21 },
+  phaseSince: { color: '#9FB6CC', fontSize: 13 },
+  phaseDivider: { height: 1, marginVertical: spacing.md, backgroundColor: 'rgba(255,255,255,0.18)' },
+  milestoneGroups: { gap: spacing.lg },
+  milestoneGroup: { gap: spacing.sm },
+  milestoneGroupHeading: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  milestoneGroupLabel: { color: colors.navy, fontSize: 13, fontWeight: '700' },
+  nowPill: { paddingHorizontal: spacing.sm, paddingVertical: 2, borderRadius: 10, backgroundColor: colors.lightBlue },
+  nowPillText: { color: colors.white, fontSize: 11, fontWeight: '700' },
+  milestoneRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    padding: spacing.md,
+    borderRadius: 11,
+    backgroundColor: '#F6F8FA',
+  },
+  milestoneMark: {
+    width: 20,
+    height: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 1.5,
     borderColor: '#AEB8C2',
-    borderRadius: 8,
-    backgroundColor: colors.white,
+    borderRadius: 10,
   },
-  timelineDotComplete: { borderColor: colors.navy, backgroundColor: colors.navy },
-  timelineDotCurrent: { borderWidth: 2, borderColor: colors.navy, backgroundColor: colors.lightBlue },
-  timelineLine: { width: 1, flex: 1, minHeight: 20, backgroundColor: '#CCD5DE' },
-  timelineCopy: { flex: 1, paddingBottom: spacing.md, gap: 3 },
-  timelineTitle: { color: colors.text, fontSize: 15, fontWeight: '600' },
-  currentText: { color: colors.navy, fontWeight: '700' },
+  milestoneMarkDone: { borderColor: colors.navy, backgroundColor: colors.navy },
+  milestoneCheck: { color: colors.white, fontSize: 12, lineHeight: 14, fontWeight: '700' },
+  milestoneCopy: { flex: 1, gap: 2 },
+  milestoneTitle: { color: colors.text, fontSize: 14, fontWeight: '600' },
+  milestoneTitleDone: { color: colors.navy },
+  milestoneWhen: { color: colors.textSecondary, fontSize: 12, fontWeight: '600' },
   mutedText: { color: colors.textSecondary, fontSize: 13, lineHeight: 19 },
   sectionIntro: { color: colors.text, fontSize: 14, lineHeight: 21 },
   checklist: { gap: spacing.sm },

@@ -1,76 +1,43 @@
-import { Link } from 'expo-router';
+import { router } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { PhaseTracker } from '@/components/phase-tracker';
 import { useAuth } from '@/data/auth';
-import { getHomeData, journeyStages, type JourneyStage, type MissionarySummary } from '@/data/repository';
+import { useMissionaries } from '@/data/missionaries';
+import { getThoughtForToday, type MissionaryDetails } from '@/data/repository';
 import { colors, spacing } from '@/theme/colors';
 
-const homeData = getHomeData();
+const thoughtForToday = getThoughtForToday();
 
-function JourneyTracker({ currentStage }: { currentStage: JourneyStage }) {
-  const activeIndex = journeyStages.indexOf(currentStage);
-
+function MissionaryCard({ missionary }: { missionary: MissionaryDetails }) {
   return (
-    <View
-      accessibilityLabel={`Journey stage: ${currentStage}`}
-      style={styles.tracker}
-      testID="journey-tracker">
-      {journeyStages.map((stage, index) => {
-        const complete = index < activeIndex;
-        const current = index === activeIndex;
-
-        return (
-          <View key={stage} style={styles.stage}>
-            <View
-              style={[
-                styles.stageDot,
-                complete && styles.stageDotComplete,
-                current && styles.stageDotCurrent,
-              ]}
-            />
-            <Text
-              style={[
-                styles.stageLabel,
-                current && styles.stageLabelCurrent,
-                complete && styles.stageLabelComplete,
-              ]}
-              numberOfLines={1}>
-              {stage}
-            </Text>
-          </View>
-        );
-      })}
-    </View>
-  );
-}
-
-function MissionaryCard({ missionary }: { missionary: MissionarySummary }) {
-  return (
-    <Link href={{ pathname: '/missionary/[id]', params: { id: missionary.id } }} asChild prefetch>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={`${missionary.name}, ${missionary.status}. View journey.`}
-        style={({ pressed }) => [styles.missionaryCard, pressed && styles.missionaryCardPressed]}>
-        <View style={styles.missionaryHeading}>
-          <View style={styles.missionaryCopy}>
-            <Text style={styles.missionaryName}>{missionary.name}</Text>
-            <Text style={styles.missionName}>{missionary.missionName}</Text>
-          </View>
-          <Text accessibilityElementsHidden style={styles.cardArrow}>›</Text>
+    <Pressable
+      accessibilityRole="button"
+      onPress={() => router.push({ pathname: '/missionary/[id]', params: { id: missionary.id } })}
+      accessibilityLabel={`${missionary.name}, ${missionary.status}. View journey.`}
+      style={({ pressed }) => [styles.missionaryCard, pressed && styles.missionaryCardPressed]}>
+      <View style={styles.missionaryHeading}>
+        <View style={styles.missionaryCopy}>
+          <Text style={styles.missionaryName}>{missionary.name}</Text>
+          <Text style={styles.missionName}>
+            {missionary.phase === 'preparing' ? 'Mission call on its way' : missionary.missionName}
+          </Text>
         </View>
-        <View style={styles.statusPill}>
-          <View style={styles.statusDot} />
-          <Text style={styles.statusText}>{missionary.status}</Text>
-        </View>
-        <View style={styles.trackerDivider} />
-        <JourneyTracker currentStage={missionary.currentStage} />
-      </Pressable>
-    </Link>
+        <Text accessibilityElementsHidden style={styles.cardArrow}>›</Text>
+      </View>
+      <View style={styles.statusPill}>
+        <View style={styles.statusDot} />
+        <Text style={styles.statusText}>{missionary.status}</Text>
+      </View>
+      <View style={styles.trackerDivider} />
+      <PhaseTracker phase={missionary.phase} />
+    </Pressable>
   );
 }
 
 export default function HomeScreen() {
   const { user } = useAuth();
+  const { missionaries } = useMissionaries();
 
   return (
     <ScrollView
@@ -91,8 +58,8 @@ export default function HomeScreen() {
           <View style={styles.thoughtAccent} />
           <View style={styles.thoughtCopy}>
             <Text style={styles.sectionEyebrow}>THOUGHT FOR TODAY</Text>
-            <Text style={styles.thoughtText}>“{homeData.thoughtForToday.text}”</Text>
-            <Text style={styles.thoughtReference}>— {homeData.thoughtForToday.reference}</Text>
+            <Text style={styles.thoughtText}>“{thoughtForToday.text}”</Text>
+            <Text style={styles.thoughtReference}>— {thoughtForToday.reference}</Text>
           </View>
         </View>
 
@@ -102,10 +69,16 @@ export default function HomeScreen() {
             <Text style={styles.sectionCaption}>Following their journey</Text>
           </View>
           <View style={styles.cardList}>
-            {homeData.missionaries.map((missionary) => (
+            {missionaries.map((missionary) => (
               <MissionaryCard key={missionary.id} missionary={missionary} />
             ))}
           </View>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => router.push('/link-missionary')}
+            style={({ pressed }) => [styles.linkButton, pressed && styles.missionaryCardPressed]}>
+            <Text style={styles.linkButtonText}>+ Link a missionary</Text>
+          </Pressable>
         </View>
       </View>
     </ScrollView>
@@ -260,49 +233,22 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
   },
+  linkButton: {
+    minHeight: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: colors.navy,
+    borderRadius: 12,
+  },
+  linkButtonText: {
+    color: colors.navy,
+    fontSize: 14,
+    fontWeight: '600',
+  },
   trackerDivider: {
     height: 1,
     backgroundColor: '#E6EBF0',
-  },
-  tracker: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-  },
-  stage: {
-    flex: 1,
-    alignItems: 'center',
-    gap: 6,
-  },
-  stageDot: {
-    width: 16,
-    height: 16,
-    borderWidth: 1.5,
-    borderColor: '#AEB8C2',
-    borderRadius: 8,
-    backgroundColor: colors.white,
-  },
-  stageDotComplete: {
-    borderColor: colors.navy,
-    backgroundColor: colors.navy,
-  },
-  stageDotCurrent: {
-    width: 18,
-    height: 18,
-    marginTop: -1,
-    borderWidth: 2,
-    borderColor: colors.navy,
-    backgroundColor: colors.lightBlue,
-  },
-  stageLabel: {
-    color: colors.textSecondary,
-    fontSize: 10,
-    textAlign: 'center',
-  },
-  stageLabelComplete: {
-    color: colors.navy,
-  },
-  stageLabelCurrent: {
-    color: colors.navy,
-    fontWeight: '700',
   },
 });
