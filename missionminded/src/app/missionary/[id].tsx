@@ -138,6 +138,15 @@ export default function MissionaryScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}>
         <View style={styles.content}>
+          <Link href="/" asChild>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Back to Home"
+              style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}>
+              <Text style={styles.backLabel}>‹  Home</Text>
+            </Pressable>
+          </Link>
+
           <View style={styles.missionaryHeader}>
             <Text style={styles.pageTitle}>{missionary.name}</Text>
             <Text style={styles.missionName}>{missionary.missionName}</Text>
@@ -285,6 +294,13 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xxl,
   },
   content: { width: '100%', maxWidth: 480, alignSelf: 'center', gap: spacing.md },
+  backButton: {
+    minHeight: 44,
+    alignSelf: 'flex-start',
+    alignItems: 'center',
+    paddingHorizontal: spacing.xs,
+  },
+  backLabel: { color: colors.navy, fontSize: 17, fontWeight: '600' },
   notFoundScreen: {
     flex: 1,
     alignItems: 'center',
