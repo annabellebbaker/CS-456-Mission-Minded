@@ -10,36 +10,38 @@
  * Run: npm run boundaries
  * Nominatim usage policy: at most 1 request per second, identify the app.
  */
-import { writeFile } from 'node:fs/promises';
-import { fileURLToPath } from 'node:url';
-import { featureCollection } from '@turf/helpers';
-import { union } from '@turf/union';
+import { writeFile } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
+import { featureCollection } from "@turf/helpers";
+import { union } from "@turf/union";
 
-const OUTPUT = fileURLToPath(new URL('../src/data/mission-boundaries.json', import.meta.url));
-const USER_AGENT = 'MissionMinded/1.0 (BYU CS 456 class project)';
+const OUTPUT = fileURLToPath(
+  new URL("../src/data/mission-boundaries.json", import.meta.url),
+);
+const USER_AGENT = "MissionMinded/1.0 (BYU CS 456 class project)";
 
 // osm: OpenStreetMap relation IDs (find one by searching nominatim.openstreetmap.org).
 // threshold: simplification in degrees. Bigger areas can use a coarser outline.
 const missions = [
   {
-    id: 'alaska-anchorage',
-    name: 'Alaska Anchorage Mission',
-    areas: [{ name: 'Alaska', osm: 1116270 }],
+    id: "alaska-anchorage",
+    name: "Alaska Anchorage Mission",
+    areas: [{ name: "Alaska", osm: 1116270 }],
     threshold: 0.02,
   },
   {
-    id: 'peru-lima-north',
-    name: 'Peru Lima North Mission',
+    id: "peru-lima-north",
+    name: "Peru Lima North Mission",
     // The districts that make up Lima Norte.
     areas: [
-      { name: 'Ancón', osm: 1944676 },
-      { name: 'Carabayllo', osm: 1944701 },
-      { name: 'Comas', osm: 1944720 },
-      { name: 'Independencia', osm: 1944743 },
-      { name: 'Los Olivos', osm: 1944759 },
-      { name: 'Puente Piedra', osm: 1944788 },
-      { name: 'San Martín de Porres', osm: 1944821 },
-      { name: 'Santa Rosa', osm: 1944842 },
+      { name: "Ancón", osm: 1944676 },
+      { name: "Carabayllo", osm: 1944701 },
+      { name: "Comas", osm: 1944720 },
+      { name: "Independencia", osm: 1944743 },
+      { name: "Los Olivos", osm: 1944759 },
+      { name: "Puente Piedra", osm: 1944788 },
+      { name: "San Martín de Porres", osm: 1944821 },
+      { name: "Santa Rosa", osm: 1944842 },
     ],
     threshold: 0.0005,
   },
@@ -48,16 +50,17 @@ const missions = [
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function lookupArea(osmId, threshold) {
-  const url = new URL('https://nominatim.openstreetmap.org/lookup');
+  const url = new URL("https://nominatim.openstreetmap.org/lookup");
   url.search = new URLSearchParams({
     osm_ids: `R${osmId}`,
-    format: 'geojson',
-    polygon_geojson: '1',
+    format: "geojson",
+    polygon_geojson: "1",
     polygon_threshold: String(threshold),
   }).toString();
 
-  const response = await fetch(url, { headers: { 'User-Agent': USER_AGENT } });
-  if (!response.ok) throw new Error(`Nominatim ${response.status} for relation ${osmId}`);
+  const response = await fetch(url, { headers: { "User-Agent": USER_AGENT } });
+  if (!response.ok)
+    throw new Error(`Nominatim ${response.status} for relation ${osmId}`);
   const data = await response.json();
   const feature = data.features?.[0];
   if (!feature) throw new Error(`No boundary found for relation ${osmId}`);
@@ -65,7 +68,8 @@ async function lookupArea(osmId, threshold) {
 }
 
 function mapPositions(geometry, fn) {
-  const polygons = geometry.type === 'Polygon' ? [geometry.coordinates] : geometry.coordinates;
+  const polygons =
+    geometry.type === "Polygon" ? [geometry.coordinates] : geometry.coordinates;
   return polygons.map((polygon) => polygon.map((ring) => ring.map(fn)));
 }
 
@@ -97,16 +101,23 @@ function normalizeGeometry(geometry, decimals) {
   // slivers. Missions have no holes: keep outer rings and drop tiny fragments.
   const outerRings = polygons.map(([outer]) => outer);
   const largest = Math.max(...outerRings.map(ringArea));
-  const coordinates = outerRings.filter((ring) => ringArea(ring) > largest * 1e-4).map((ring) => [ring]);
+  const coordinates = outerRings
+    .filter((ring) => ringArea(ring) > largest * 1e-4)
+    .map((ring) => [ring]);
 
-  return { type: 'MultiPolygon', coordinates };
+  return { type: "MultiPolygon", coordinates };
 }
 
 function boundingBox(geometry) {
   const positions = geometry.coordinates.flat(2);
   const lons = positions.map(([lon]) => lon);
   const lats = positions.map(([, lat]) => lat);
-  return [Math.min(...lons), Math.min(...lats), Math.max(...lons), Math.max(...lats)];
+  return [
+    Math.min(...lons),
+    Math.min(...lats),
+    Math.max(...lons),
+    Math.max(...lats),
+  ];
 }
 
 async function buildMission(mission) {
@@ -117,7 +128,8 @@ async function buildMission(mission) {
     await sleep(1100);
   }
 
-  const merged = features.length > 1 ? union(featureCollection(features)) : features[0];
+  const merged =
+    features.length > 1 ? union(featureCollection(features)) : features[0];
   const decimals = mission.threshold >= 0.01 ? 3 : 4;
   const geometry = normalizeGeometry(merged.geometry, decimals);
 
@@ -131,7 +143,7 @@ async function buildMission(mission) {
 }
 
 const output = {
-  source: 'OpenStreetMap contributors via Nominatim (ODbL)',
+  source: "OpenStreetMap contributors via Nominatim (ODbL)",
   generatedAt: new Date().toISOString().slice(0, 10),
   missions: {},
 };

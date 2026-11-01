@@ -15,7 +15,7 @@
     },
     "ios": {
       "icon": "./assets/expo.icon",
-      "bundleIdentifier": "com.anonymous.missionminded",
+      "bundleIdentifier": "com.anonymous.missionminded"
     },
     "android": {
       "adaptiveIcon": {
@@ -25,7 +25,7 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.missionminded",
+      "package": "com.anonymous.missionminded"
     },
     "web": {
       "output": "server",
