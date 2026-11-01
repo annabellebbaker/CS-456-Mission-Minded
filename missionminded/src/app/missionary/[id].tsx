@@ -4,10 +4,11 @@ import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { addDoc, collection, onSnapshot } from 'firebase/firestore';
 
+import { MissionMap } from '@/components/mission-map';
 import { useAuth } from '@/data/auth';
 import { getFirebaseFirestore } from '@/data/firebase';
 import { useMissionaries } from '@/data/missionaries-context';
-import { type JourneyMilestone } from '@/data/repository';
+import { getMissionBoundary, type JourneyMilestone } from '@/data/repository';
 import { colors, spacing } from '@/theme/colors';
 
 const unavailableDetail = "Some details aren't released yet.";
@@ -128,6 +129,7 @@ export default function MissionaryScreen() {
   };
 
   const details = missionary.missionDetails;
+  const boundary = getMissionBoundary(missionary.missionId);
 
   return (
     <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
@@ -213,14 +215,18 @@ export default function MissionaryScreen() {
 
           {detailsExpanded && (
             <View style={styles.detailsContent}>
-              <View style={styles.mapPlaceholder}>
-                <View style={styles.mapGridVertical} />
-                <View style={styles.mapGridHorizontal} />
-                <View style={styles.mapMarker} />
-                <View style={styles.mapLabel}>
-                  <Text style={styles.mapLabelText}>Mission map</Text>
+              {boundary ? (
+                <MissionMap boundary={boundary} />
+              ) : (
+                <View style={styles.mapPlaceholder}>
+                  <View style={styles.mapGridVertical} />
+                  <View style={styles.mapGridHorizontal} />
+                  <View style={styles.mapMarker} />
+                  <View style={styles.mapLabel}>
+                    <Text style={styles.mapLabelText}>Mission map</Text>
+                  </View>
                 </View>
-              </View>
+              )}
               <View style={styles.detailGrid}>
                 <View style={styles.detailTile}>
                   <DetailValue label="COMPANION" value={details.companion} />

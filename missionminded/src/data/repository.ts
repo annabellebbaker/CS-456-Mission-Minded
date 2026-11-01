@@ -1,3 +1,5 @@
+import missionBoundaryData from '@/data/mission-boundaries.json';
+
 export const journeyStages = ['Called', 'Preparing', 'MTC', 'Serving', 'Home'] as const;
 
 export type JourneyStage = (typeof journeyStages)[number];
@@ -56,6 +58,21 @@ export type NewMissionary = {
 };
 
 export type PackingSuggestion = { id: string; missionId: string; title: string };
+
+export type MissionBoundary = {
+  name: string;
+  areas: string[];
+  approximate: boolean;
+  /** [west, south, east, north] in degrees. West can be below -180 for date-line missions. */
+  bbox: [number, number, number, number];
+  geometry: { type: 'MultiPolygon'; coordinates: number[][][][] };
+};
+
+const missionBoundaries = missionBoundaryData.missions as unknown as Record<string, MissionBoundary>;
+
+export function getMissionBoundary(missionId?: string): MissionBoundary | undefined {
+  return missionId ? missionBoundaries[missionId] : undefined;
+}
 
 const knownMissionIds: Record<string, string> = {
   'alaska anchorage mission': 'alaska-anchorage',
