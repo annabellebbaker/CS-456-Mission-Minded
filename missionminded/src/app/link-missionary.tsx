@@ -13,22 +13,30 @@ export default function LinkMissionaryScreen() {
   const [mtcReportDate, setMtcReportDate] = useState('');
   const [missionLengthMonths, setMissionLengthMonths] = useState('');
   const [nameError, setNameError] = useState('');
+  const [saving, setSaving] = useState(false);
 
-  const submit = () => {
+  const submit = async () => {
     const cleanName = name.trim();
     if (!cleanName) {
       setNameError('Enter your missionary’s name to continue.');
       return;
     }
 
-    const id = addMissionary({
-      name: cleanName,
-      relationship,
-      missionName,
-      mtcReportDate,
-      missionLengthMonths,
-    });
-    router.replace({ pathname: '/missionary/[id]', params: { id } });
+    setSaving(true);
+    try {
+      const id = await addMissionary({
+        name: cleanName,
+        relationship,
+        missionName,
+        mtcReportDate,
+        missionLengthMonths,
+      });
+      router.replace({ pathname: '/missionary/[id]', params: { id } });
+    } catch {
+      setNameError('Could not save this missionary. Check your connection and try again.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -89,12 +97,14 @@ export default function LinkMissionaryScreen() {
           />
         </View>
 
-        <Text style={styles.note}>These details stay on this device in the Phase 1 prototype and reset when you refresh.</Text>
+        <Text style={styles.note}>Your linked missionaries sync to your account.</Text>
         <Pressable
           accessibilityRole="button"
-          onPress={submit}
+          accessibilityState={{ disabled: saving }}
+          disabled={saving}
+          onPress={() => void submit()}
           style={({ pressed }) => [styles.submitButton, pressed && styles.pressed]}>
-          <Text style={styles.submitText}>Link missionary</Text>
+          <Text style={styles.submitText}>{saving ? 'Saving…' : 'Link missionary'}</Text>
         </Pressable>
       </View>
     </ScrollView>

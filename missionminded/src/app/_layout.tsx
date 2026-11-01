@@ -6,7 +6,9 @@ import { MissionariesProvider } from '@/data/missionaries-context';
 import { NotificationProvider } from '@/data/notification-context';
 
 function RootStack() {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
+
+  if (loading) return null;
 
   return (
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#FFFFFF' } }}>

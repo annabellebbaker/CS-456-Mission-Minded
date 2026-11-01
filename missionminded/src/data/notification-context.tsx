@@ -1,5 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import { doc, updateDoc } from 'firebase/firestore';
 
+import { useAuth } from '@/data/auth';
+import { getFirebaseFirestore } from '@/data/firebase';
 import { useMissionaries } from '@/data/missionaries-context';
 import {
   hasNotificationPermission,
@@ -17,15 +20,15 @@ type NotificationContextValue = {
 const NotificationContext = createContext<NotificationContextValue | null>(null);
 
 export function NotificationProvider({ children }: { children: ReactNode }) {
+  const { user } = useAuth();
   const { appointments, missionaries } = useMissionaries();
-  const [status, setStatus] = useState<NotificationStatus>('checking');
+  const [status, setStatus] = useState<NotificationStatus>(
+    () => isNotificationSupported() ? 'checking' : 'unavailable',
+  );
   const syncQueue = useRef<Promise<void>>(Promise.resolve());
 
   useEffect(() => {
-    if (!isNotificationSupported()) {
-      setStatus('unavailable');
-      return;
-    }
+    if (!isNotificationSupported()) return;
 
     hasNotificationPermission()
       .then((granted) => setStatus(granted ? 'enabled' : 'denied'))
@@ -40,12 +43,22 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     try {
       const granted = await requestNotificationPermission();
       setStatus(granted ? 'enabled' : 'denied');
+      if (granted && user) {
+        try {
+          await updateDoc(doc(getFirebaseFirestore(), 'users', user.id), {
+            'settings.appointmentReminders': true,
+            'settings.milestoneReminders': true,
+          });
+        } catch {
+          // Device reminders remain enabled if settings sync is temporarily offline.
+        }
+      }
       return granted;
     } catch {
       setStatus('error');
       return false;
     }
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     if (status !== 'enabled') return;

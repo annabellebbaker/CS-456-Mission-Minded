@@ -7,8 +7,15 @@
     "icon": "./assets/images/icon.png",
     "scheme": "missionminded",
     "userInterfaceStyle": "automatic",
+    "owner": "cs-456-mission-minded",
+    "extra": {
+      "eas": {
+        "projectId": "d3472bec-087e-4ce2-ac3b-517f212b1651"
+      }
+    },
     "ios": {
-      "icon": "./assets/expo.icon"
+      "icon": "./assets/expo.icon",
+      "bundleIdentifier": "com.anonymous.missionminded",
     },
     "android": {
       "adaptiveIcon": {
@@ -18,7 +25,7 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.missionminded"
+      "package": "com.anonymous.missionminded",
     },
     "web": {
       "output": "server",

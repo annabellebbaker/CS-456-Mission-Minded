@@ -1,8 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { collection, doc, onSnapshot, setDoc } from 'firebase/firestore';
 
+import { useAuth } from '@/data/auth';
+import { getFirebaseFirestore } from '@/data/firebase';
 import { useMissionaries } from '@/data/missionaries-context';
-import { getPackingSuggestions, type PackingSuggestion } from '@/data/repository';
+import type { PackingSuggestion } from '@/data/repository';
 import { colors, spacing } from '@/theme/colors';
 
 const essentials = [
@@ -35,17 +38,102 @@ function climateItems(missionName: string) {
   ];
 }
 
+function missionSuggestions(missionId: string, value: unknown): PackingSuggestion[] {
+  const rows = Array.isArray(value)
+    ? value
+    : value && typeof value === 'object'
+      ? Object.entries(value).flatMap(([climate, items]) => Array.isArray(items)
+        ? items.map((item) => typeof item === 'string' ? { title: item, climate } : { ...item as object, climate })
+        : [])
+      : [];
+  return rows.flatMap((row) => {
+    if (typeof row === 'string') {
+      const title = row.trim();
+      return title ? [{ id: title.toLowerCase().replace(/[^a-z0-9]+/g, '-'), missionId, title }] : [];
+    }
+    if (!row || typeof row !== 'object') return [];
+    const item = row as { id?: unknown; title?: unknown; name?: unknown };
+    const title = typeof item.title === 'string' ? item.title : typeof item.name === 'string' ? item.name : '';
+    if (!title.trim()) return [];
+    const id = typeof item.id === 'string' ? item.id : title.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    return [{ id, missionId, title: title.trim() }];
+  });
+}
+
 export default function PackingScreen() {
+  const { user } = useAuth();
   const { missionaries } = useMissionaries();
   const [selectedMissionaryId, setSelectedMissionaryId] = useState(missionaries[0]?.id ?? '');
   const [checkedItems, setCheckedItems] = useState<Record<string, boolean>>({});
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({ essentials: true });
   const [customItems, setCustomItems] = useState<Record<string, { id: string; title: string }[]>>({});
+  const [suggestionSnapshot, setSuggestionSnapshot] = useState<{ missionId: string | null; items: PackingSuggestion[] }>({
+    missionId: null,
+    items: [],
+  });
+  const [missionDocSuggestions, setMissionDocSuggestions] = useState<{ missionId: string | null; items: PackingSuggestion[] }>({
+    missionId: null,
+    items: [],
+  });
   const [addedSuggestions, setAddedSuggestions] = useState<Record<string, boolean>>({});
   const missionary = missionaries.find((item) => item.id === selectedMissionaryId) ?? missionaries[0];
   const missionItems = climateItems(missionary?.missionName ?? '');
-  const suggestions = getPackingSuggestions(missionary?.missionId);
   const missionaryCustomItems = customItems[missionary?.id ?? 'none'] ?? [];
+  const suggestions = suggestionSnapshot.missionId === missionary?.missionId && suggestionSnapshot.items.length
+    ? suggestionSnapshot.items
+    : missionDocSuggestions.missionId === missionary?.missionId
+      ? missionDocSuggestions.items
+      : [];
+
+  useEffect(() => {
+    if (!missionary?.missionId) return;
+    return onSnapshot(doc(getFirebaseFirestore(), 'missions', missionary.missionId), (snapshot) => {
+      const data = snapshot.data();
+      setMissionDocSuggestions({
+        missionId: missionary.missionId as string,
+        items: missionSuggestions(missionary.missionId as string, data?.packingItems),
+      });
+    }, () => setMissionDocSuggestions({ missionId: missionary.missionId as string, items: [] }));
+  }, [missionary?.missionId]);
+
+  useEffect(() => {
+    if (!missionary?.missionId) return;
+    return onSnapshot(
+      collection(getFirebaseFirestore(), 'missions', missionary.missionId, 'packingItems'),
+      (snapshot) => setSuggestionSnapshot({
+        missionId: missionary.missionId as string,
+        items: snapshot.docs.map((item) => ({
+          ...item.data(),
+          id: item.id,
+          missionId: missionary.missionId as string,
+        }) as PackingSuggestion),
+      }),
+      () => setSuggestionSnapshot({ missionId: missionary.missionId as string, items: [] }),
+    );
+  }, [missionary?.missionId]);
+
+  useEffect(() => {
+    if (!user || !missionary) return;
+    return onSnapshot(
+      collection(getFirebaseFirestore(), 'users', user.id, 'missionaries', missionary.id, 'packingChecks'),
+      (snapshot) => {
+        const checked: Record<string, boolean> = {};
+        const custom: { id: string; title: string }[] = [];
+        snapshot.docs.forEach((item) => {
+          const data = item.data();
+          if (data.checked) checked[`${missionary.id}:${item.id}`] = true;
+          if (data.custom === true && typeof data.title === 'string') custom.push({ id: item.id, title: data.title });
+        });
+        setCheckedItems((current) => ({
+          ...Object.fromEntries(
+            Object.entries(current).filter(([key]) => !key.startsWith(`${missionary.id}:`)),
+          ),
+          ...checked,
+        }));
+        setCustomItems((current) => ({ ...current, [missionary.id]: custom }));
+      },
+    );
+  }, [missionary, user]);
 
   const toggleSection = (id: string) => {
     setOpenSections((current) => ({ ...current, [id]: !current[id] }));
@@ -53,17 +141,21 @@ export default function PackingScreen() {
 
   const toggleItem = (id: string) => {
     const key = `${missionary?.id ?? 'none'}:${id}`;
-    setCheckedItems((current) => ({ ...current, [key]: !current[key] }));
+    const checked = !checkedItems[key];
+    setCheckedItems((current) => ({ ...current, [key]: checked }));
+    if (user && missionary) {
+      void setDoc(doc(getFirebaseFirestore(), 'users', user.id, 'missionaries', missionary.id, 'packingChecks', id), { checked }, { merge: true });
+    }
   };
 
-  const addSuggestion = (suggestion: PackingSuggestion) => {
-    if (!missionary) return;
+  const addSuggestion = async (suggestion: PackingSuggestion) => {
+    if (!missionary || !user) return;
     const suggestionKey = `${missionary.id}:${suggestion.id}`;
-    setCustomItems((current) => {
-      const items = current[missionary.id] ?? [];
-      if (items.some((item) => item.id === suggestion.id)) return current;
-      return { ...current, [missionary.id]: [...items, { id: suggestion.id, title: suggestion.title }] };
-    });
+    await setDoc(doc(getFirebaseFirestore(), 'users', user.id, 'missionaries', missionary.id, 'packingChecks', suggestion.id), {
+      title: suggestion.title,
+      checked: false,
+      custom: true,
+    }, { merge: true });
     setAddedSuggestions((current) => ({ ...current, [suggestionKey]: true }));
   };
 
@@ -101,7 +193,7 @@ export default function PackingScreen() {
         {missionary ? (
           <View style={styles.missionCard}>
             <Text style={styles.missionName}>{missionary.missionName}</Text>
-            <Text style={styles.mutedText}>Check items off as you gather them. Your checklist resets when you refresh the prototype.</Text>
+          <Text style={styles.mutedText}>Check items off as you gather them. Your checklist syncs to your account.</Text>
           </View>
         ) : (
           <View style={styles.missionCard}>
@@ -142,9 +234,10 @@ export default function PackingScreen() {
           </Pressable>
           {openSections.suggestions && (
             <View style={styles.suggestionList}>
-              <Text style={styles.mutedText}>Prototype suggestions are matched by mission ID. Real community suggestions need a shared database.</Text>
+              <Text style={styles.mutedText}>Suggestions shared for this mission will appear here.</Text>
               {suggestions.length ? suggestions.map((suggestion) => {
-                const added = Boolean(addedSuggestions[`${missionary?.id ?? 'none'}:${suggestion.id}`]);
+                const added = Boolean(addedSuggestions[`${missionary?.id ?? 'none'}:${suggestion.id}`])
+                  || missionaryCustomItems.some((item) => item.id === suggestion.id);
                 return (
                   <View key={suggestion.id} style={styles.suggestionRow}>
                     <Text style={styles.itemText}>{suggestion.title}</Text>
@@ -152,7 +245,7 @@ export default function PackingScreen() {
                       accessibilityRole="button"
                       accessibilityState={{ disabled: added }}
                       disabled={added}
-                      onPress={() => addSuggestion(suggestion)}
+                      onPress={() => void addSuggestion(suggestion)}
                       style={({ pressed }) => [styles.suggestionButton, added && styles.suggestionButtonAdded, pressed && styles.pressed]}>
                       <Text style={[styles.suggestionButtonText, added && styles.suggestionButtonTextAdded]}>{added ? 'Added' : 'Add'}</Text>
                     </Pressable>

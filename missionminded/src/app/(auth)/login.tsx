@@ -14,22 +14,36 @@ import { useAuth } from '@/data/auth';
 import { colors, spacing } from '@/theme/colors';
 
 export default function LoginScreen() {
-  const { signIn } = useAuth();
+  const { signIn, createAccount, setupError } = useAuth();
+  const [creatingAccount, setCreatingAccount] = useState(false);
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
 
-  const handleLogin = () => {
-    if (!email.trim() || !password) {
-      setError('Please enter your email and password.');
+  const handleLogin = async () => {
+    if ((creatingAccount && !name.trim()) || !email.trim() || !password) {
+      setError(creatingAccount
+        ? 'Enter your name, email, and password to create an account.'
+        : 'Please enter your email and password.');
       return;
     }
-    if (!signIn(email, password)) {
-      setError('Incorrect email or password.');
-      return;
+    try {
+      if (creatingAccount) await createAccount(name, email, password);
+      else await signIn(email, password);
+      setError('');
+    } catch (error) {
+      const code = (error as { code?: string })?.code;
+      setError(setupError || (code === 'auth/email-already-in-use'
+        ? 'An account already uses that email. Log in instead.'
+        : code === 'auth/invalid-email'
+          ? 'Enter a valid email address.'
+          : code === 'auth/weak-password'
+            ? 'Choose a password with at least 6 characters.'
+            : creatingAccount
+              ? 'Could not create your account. Check your connection and try again.'
+              : 'Email or password did not match an account.'));
     }
-    // The root layout sends signed-in users to Home.
-    setError('');
   };
 
   return (
@@ -46,6 +60,24 @@ export default function LoginScreen() {
           </View>
 
           <View style={styles.card}>
+            {!!setupError && (
+              <Text accessibilityRole="alert" style={styles.error}>
+                {setupError}
+              </Text>
+            )}
+            {creatingAccount && (
+              <View style={styles.field}>
+                <Text style={styles.label}>NAME</Text>
+                <TextInput
+                  accessibilityLabel="Name"
+                  value={name}
+                  onChangeText={setName}
+                  autoCapitalize="words"
+                  textContentType="name"
+                  style={styles.textInput}
+                />
+              </View>
+            )}
             <View style={styles.field}>
               <Text style={styles.label}>EMAIL</Text>
               <TextInput
@@ -84,9 +116,20 @@ export default function LoginScreen() {
 
             <Pressable
               accessibilityRole="button"
-              onPress={handleLogin}
+              onPress={() => void handleLogin()}
               style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}>
-              <Text style={styles.primaryButtonText}>Log in</Text>
+              <Text style={styles.primaryButtonText}>{creatingAccount ? 'Create account' : 'Log in'}</Text>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => {
+                setCreatingAccount((value) => !value);
+                setError('');
+              }}
+              style={({ pressed }) => [styles.modeButton, pressed && styles.pressed]}>
+              <Text style={styles.modeButtonText}>
+                {creatingAccount ? 'Already have an account? Log in' : 'Create an account'}
+              </Text>
             </Pressable>
           </View>
         </View>
@@ -180,6 +223,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
   },
+  modeButton: { minHeight: 42, alignItems: 'center', justifyContent: 'center' },
+  modeButtonText: { color: colors.navy, fontSize: 14, fontWeight: '600' },
   pressed: {
     opacity: 0.75,
   },

@@ -1,4 +1,5 @@
 import * as Notifications from 'expo-notifications';
+import { AndroidImportance, IosAuthorizationStatus } from 'expo-notifications';
 import { Platform } from 'react-native';
 
 export type ReminderAppointment = { id: string; title: string; startsAt: string };
@@ -22,7 +23,7 @@ export function isNotificationSupported() {
 
 function isGranted(settings: Notifications.NotificationPermissionsStatus) {
   return settings.granted
-    || (Platform.OS === 'ios' && settings.ios?.status === Notifications.IosAuthorizationStatus.PROVISIONAL);
+    || (Platform.OS === 'ios' && settings.ios?.status === IosAuthorizationStatus.PROVISIONAL);
 }
 
 export async function hasNotificationPermission() {
@@ -34,7 +35,7 @@ export async function requestNotificationPermission() {
   if (Platform.OS === 'android') {
     await Notifications.setNotificationChannelAsync('reminders', {
       name: 'Mission reminders',
-      importance: Notifications.AndroidImportance.DEFAULT,
+      importance: AndroidImportance.DEFAULT,
     });
   }
 

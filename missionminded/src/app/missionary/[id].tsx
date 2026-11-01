@@ -1,9 +1,13 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useLocalSearchParams } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { addDoc, collection, onSnapshot } from 'firebase/firestore';
 
+import { useAuth } from '@/data/auth';
+import { getFirebaseFirestore } from '@/data/firebase';
 import { useMissionaries } from '@/data/missionaries-context';
-import { type GrowingTogetherItem, type JourneyMilestone } from '@/data/repository';
+import { type JourneyMilestone } from '@/data/repository';
 import { colors, spacing } from '@/theme/colors';
 
 const unavailableDetail = "Some details aren't released yet.";
@@ -38,9 +42,10 @@ function JourneyTimeline({
               <Text style={styles.mutedText}>{milestone.description}</Text>
               {milestone.state !== 'complete' && (
                 <TextInput
+                  key={`${milestone.title}-${milestone.date ?? ''}`}
                   accessibilityLabel={`Date for ${milestone.title}`}
-                  value={milestone.date ?? ''}
-                  onChangeText={(date) => onChangeDate(index, date)}
+                  defaultValue={milestone.date ?? ''}
+                  onEndEditing={({ nativeEvent }) => onChangeDate(index, nativeEvent.text)}
                   placeholder="Set date (YYYY-MM-DD)"
                   placeholderTextColor="#6F7C88"
                   returnKeyType="done"
@@ -64,42 +69,43 @@ function DetailValue({ label, value }: { label: string; value: string | null }) 
   );
 }
 
-function ChecklistRow({
-  item,
-  checked,
-  onToggle,
-}: {
-  item: GrowingTogetherItem;
-  checked: boolean;
-  onToggle: () => void;
-}) {
-  return (
-    <Pressable
-      accessibilityRole="checkbox"
-      accessibilityState={{ checked }}
-      onPress={onToggle}
-      style={({ pressed }) => [styles.checkRow, pressed && styles.pressed]}>
-      <View style={[styles.checkbox, checked && styles.checkboxChecked]}>
-        {checked && <Text style={styles.checkmark}>✓</Text>}
-      </View>
-      <View style={styles.checkCopy}>
-        <Text style={styles.checkTitle}>{item.title}</Text>
-        <Text style={styles.mutedText}>{item.description}</Text>
-      </View>
-    </Pressable>
-  );
-}
-
 export default function MissionaryScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { missionaries, updateMilestoneDate } = useMissionaries();
+  const { user } = useAuth();
+  const { missionaries, loading, updateMilestoneDate } = useMissionaries();
   const missionaryId = Array.isArray(id) ? id[0] : id;
   const missionary = missionaries.find((item) => item.id === missionaryId);
+  const hasAssignedMission = Boolean(
+    missionary?.missionId
+    || (
+      missionary?.missionName.trim()
+      && missionary.missionName !== 'Mission details can be added later'
+    ),
+  );
   const [detailsExpanded, setDetailsExpanded] = useState(false);
-  const [completedItems, setCompletedItems] = useState<Record<string, boolean>>({});
   const [guesses, setGuesses] = useState(() => missionary?.guesses ?? []);
   const [guessText, setGuessText] = useState('');
   const [callRevealed, setCallRevealed] = useState(false);
+
+  useEffect(() => {
+    if (!user || !missionaryId || hasAssignedMission) return;
+    const basePath = ['users', user.id, 'missionaries', missionaryId] as const;
+    const db = getFirebaseFirestore();
+    const stopGuesses = onSnapshot(collection(db, ...basePath, 'guesses'), (snapshot) => {
+      setGuesses(snapshot.docs.map((item) => item.data() as { text: string; who: string }));
+    });
+    return () => {
+      stopGuesses();
+    };
+  }, [hasAssignedMission, missionaryId, user]);
+
+  if (!missionary && loading) {
+    return (
+      <View style={styles.notFoundScreen}>
+        <Text style={styles.pageTitle}>Loading missionary…</Text>
+      </View>
+    );
+  }
 
   if (!missionary) {
     return (
@@ -110,177 +116,162 @@ export default function MissionaryScreen() {
     );
   }
 
-  const toggleChecklistItem = (itemId: string) => {
-    setCompletedItems((current) => ({ ...current, [itemId]: !current[itemId] }));
-  };
-
-  const addGuess = () => {
+  const addGuess = async () => {
     const trimmedGuess = guessText.trim();
-    if (!trimmedGuess) return;
+    if (!trimmedGuess || !user) return;
 
-    setGuesses((current) => [...current, { text: trimmedGuess, who: 'You' }]);
+    await addDoc(collection(getFirebaseFirestore(), 'users', user.id, 'missionaries', missionary.id, 'guesses'), {
+      text: trimmedGuess,
+      who: user.name,
+    });
     setGuessText('');
   };
 
   const details = missionary.missionDetails;
 
   return (
-    <ScrollView
-      style={styles.screen}
-      contentContainerStyle={styles.scrollContent}
-      showsVerticalScrollIndicator={false}>
-      <View style={styles.content}>
+    <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}>
+        <View style={styles.content}>
+          <View style={styles.missionaryHeader}>
+            <Text style={styles.pageTitle}>{missionary.name}</Text>
+            <Text style={styles.missionName}>{missionary.missionName}</Text>
+            <View style={styles.statusPill}>
+              <View style={styles.statusDot} />
+              <Text style={styles.statusText}>{missionary.status}</Text>
+            </View>
+          </View>
+
+          <View style={styles.sectionCard}>
+            <Text style={styles.sectionEyebrow}>THEIR JOURNEY</Text>
+            <JourneyTimeline
+              milestones={missionary.journey}
+              onChangeDate={(index, date) => { void updateMilestoneDate(missionary.id, index, date).catch(() => undefined); }}
+            />
+          </View>
+
+          {missionary.phase === 'pre-mission' && !hasAssignedMission && (
+            <View style={styles.sectionCard}>
+              <Text style={styles.cardTitle}>Where is {missionary.firstName} going?</Text>
+              <Text style={styles.mutedText}>Family and friends can add guesses before the call is opened.</Text>
+              <View style={styles.guessEntry}>
+                <TextInput
+                  accessibilityLabel="Your mission guess"
+                  value={guessText}
+                  onChangeText={setGuessText}
+                  onSubmitEditing={addGuess}
+                  placeholder="Country, city or mission"
+                  placeholderTextColor="#6F7C88"
+                  returnKeyType="done"
+                  style={styles.textInput}
+                />
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={addGuess}
+                  style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}>
+                  <Text style={styles.primaryButtonText}>Add</Text>
+                </Pressable>
+              </View>
+              {guesses.length > 0 && (
+                <View style={styles.guessList}>
+                  {guesses.map((guess, index) => (
+                    <View key={`${guess.who}-${guess.text}-${index}`} style={styles.guessRow}>
+                      <Text style={styles.guessText}>{guess.text}</Text>
+                      <Text style={styles.mutedText}>{guess.who}</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+              {!callRevealed ? (
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => setCallRevealed(true)}
+                  style={({ pressed }) => [styles.revealButton, pressed && styles.pressed]}>
+                  <Text style={styles.revealButtonText}>Reveal the call</Text>
+                </Pressable>
+              ) : (
+                <View style={styles.revealCard}>
+                  <Text style={styles.sectionEyebrow}>CALLED TO SERVE IN THE</Text>
+                  <Text style={styles.revealedMission}>{missionary.missionName}</Text>
+                  <Text style={styles.mutedText}>{missionary.language}</Text>
+                </View>
+              )}
+            </View>
+          )}
+
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ expanded: detailsExpanded }}
+            onPress={() => setDetailsExpanded((expanded) => !expanded)}
+            style={({ pressed }) => [styles.detailsToggle, pressed && styles.pressed]}>
+            <Text style={styles.detailsToggleText}>Mission details</Text>
+            <Text accessibilityElementsHidden style={styles.detailsToggleIcon}>{detailsExpanded ? '−' : '+'}</Text>
+          </Pressable>
+
+          {detailsExpanded && (
+            <View style={styles.detailsContent}>
+              <View style={styles.mapPlaceholder}>
+                <View style={styles.mapGridVertical} />
+                <View style={styles.mapGridHorizontal} />
+                <View style={styles.mapMarker} />
+                <View style={styles.mapLabel}>
+                  <Text style={styles.mapLabelText}>Mission map</Text>
+                </View>
+              </View>
+              <View style={styles.detailGrid}>
+                <View style={styles.detailTile}>
+                  <DetailValue label="COMPANION" value={details.companion} />
+                </View>
+                <View style={styles.detailTile}>
+                  <DetailValue label="AREA" value={details.area} />
+                </View>
+              </View>
+              <View style={styles.detailPanel}>
+                <DetailValue label="MISSION LEADERS" value={details.leaders} />
+              </View>
+              <View style={styles.detailPanel}>
+                <DetailValue label="MISSION OFFICE" value={details.office} />
+                <View style={styles.officeActions}>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityState={{ disabled: !details.phone }}
+                    disabled={!details.phone}
+                    style={[styles.officeButton, !details.phone && styles.officeButtonDisabled]}>
+                    <Text style={styles.officeButtonText}>Call</Text>
+                  </Pressable>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityState={{ disabled: !details.email }}
+                    disabled={!details.email}
+                    style={[styles.officeButton, !details.email && styles.officeButtonDisabled]}>
+                    <Text style={styles.officeButtonText}>Email</Text>
+                  </Pressable>
+                </View>
+              </View>
+              <Text style={styles.unavailableNote}>{unavailableDetail} These fields can fill in as the missionary shares them.</Text>
+            </View>
+          )}
+        </View>
+      </ScrollView>
+      <View style={styles.homeAction}>
         <Link href="/" asChild>
-          <Pressable accessibilityRole="button" style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}>
-            <Text style={styles.backText}>‹  Home</Text>
+          <Pressable
+            accessibilityRole="button"
+            style={({ pressed }) => [styles.homeActionButton, pressed && styles.pressed]}>
+            <Text style={styles.homeActionText}>Return to Home</Text>
           </Pressable>
         </Link>
-
-        <View style={styles.missionaryHeader}>
-          <Text style={styles.pageTitle}>{missionary.name}</Text>
-          <Text style={styles.missionName}>{missionary.missionName}</Text>
-          <View style={styles.statusPill}>
-            <View style={styles.statusDot} />
-            <Text style={styles.statusText}>{missionary.status}</Text>
-          </View>
-        </View>
-
-        <View style={styles.sectionCard}>
-          <Text style={styles.sectionEyebrow}>THEIR JOURNEY</Text>
-          <JourneyTimeline
-            milestones={missionary.journey}
-            onChangeDate={(index, date) => updateMilestoneDate(missionary.id, index, date)}
-          />
-        </View>
-
-        <View style={styles.sectionCard}>
-          <Text style={styles.sectionEyebrow}>GROWING TOGETHER THIS WEEK</Text>
-          <Text style={styles.sectionIntro}>{missionary.growingTogetherIntro}</Text>
-          <View style={styles.checklist}>
-            {missionary.growingTogether.map((item) => (
-              <ChecklistRow
-                key={item.id}
-                item={item}
-                checked={Boolean(completedItems[item.id])}
-                onToggle={() => toggleChecklistItem(item.id)}
-              />
-            ))}
-          </View>
-          <View style={styles.ponderBox}>
-            <Text style={styles.sectionEyebrow}>TO PONDER AS A FAMILY</Text>
-            <Text style={styles.ponderText}>“{missionary.ponderText}”</Text>
-            <Text style={styles.mutedText}>— {missionary.ponderReference}</Text>
-          </View>
-        </View>
-
-        {missionary.phase === 'pre-mission' && (
-          <View style={styles.sectionCard}>
-            <Text style={styles.cardTitle}>Where is {missionary.firstName} going?</Text>
-            <Text style={styles.mutedText}>Family and friends can add guesses before the call is opened.</Text>
-            <View style={styles.guessEntry}>
-              <TextInput
-                accessibilityLabel="Your mission guess"
-                value={guessText}
-                onChangeText={setGuessText}
-                onSubmitEditing={addGuess}
-                placeholder="Country, city or mission"
-                placeholderTextColor="#6F7C88"
-                returnKeyType="done"
-                style={styles.textInput}
-              />
-              <Pressable
-                accessibilityRole="button"
-                onPress={addGuess}
-                style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}>
-                <Text style={styles.primaryButtonText}>Add</Text>
-              </Pressable>
-            </View>
-            {guesses.length > 0 && (
-              <View style={styles.guessList}>
-                {guesses.map((guess, index) => (
-                  <View key={`${guess.who}-${guess.text}-${index}`} style={styles.guessRow}>
-                    <Text style={styles.guessText}>{guess.text}</Text>
-                    <Text style={styles.mutedText}>{guess.who}</Text>
-                  </View>
-                ))}
-              </View>
-            )}
-            {!callRevealed ? (
-              <Pressable
-                accessibilityRole="button"
-                onPress={() => setCallRevealed(true)}
-                style={({ pressed }) => [styles.revealButton, pressed && styles.pressed]}>
-                <Text style={styles.revealButtonText}>Reveal the call</Text>
-              </Pressable>
-            ) : (
-              <View style={styles.revealCard}>
-                <Text style={styles.sectionEyebrow}>CALLED TO SERVE IN THE</Text>
-                <Text style={styles.revealedMission}>{missionary.missionName}</Text>
-                <Text style={styles.mutedText}>{missionary.language}</Text>
-              </View>
-            )}
-          </View>
-        )}
-
-        <Pressable
-          accessibilityRole="button"
-          accessibilityState={{ expanded: detailsExpanded }}
-          onPress={() => setDetailsExpanded((expanded) => !expanded)}
-          style={({ pressed }) => [styles.detailsToggle, pressed && styles.pressed]}>
-          <Text style={styles.detailsToggleText}>Mission details</Text>
-          <Text accessibilityElementsHidden style={styles.detailsToggleIcon}>{detailsExpanded ? '−' : '+'}</Text>
-        </Pressable>
-
-        {detailsExpanded && (
-          <View style={styles.detailsContent}>
-            <View style={styles.mapPlaceholder}>
-              <View style={styles.mapGridVertical} />
-              <View style={styles.mapGridHorizontal} />
-              <View style={styles.mapMarker} />
-              <View style={styles.mapLabel}>
-                <Text style={styles.mapLabelText}>Mission map</Text>
-              </View>
-            </View>
-            <View style={styles.detailGrid}>
-              <View style={styles.detailTile}>
-                <DetailValue label="COMPANION" value={details.companion} />
-              </View>
-              <View style={styles.detailTile}>
-                <DetailValue label="AREA" value={details.area} />
-              </View>
-            </View>
-            <View style={styles.detailPanel}>
-              <DetailValue label="MISSION LEADERS" value={details.leaders} />
-            </View>
-            <View style={styles.detailPanel}>
-              <DetailValue label="MISSION OFFICE" value={details.office} />
-              <View style={styles.officeActions}>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityState={{ disabled: !details.phone }}
-                  disabled={!details.phone}
-                  style={[styles.officeButton, !details.phone && styles.officeButtonDisabled]}>
-                  <Text style={styles.officeButtonText}>Call</Text>
-                </Pressable>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityState={{ disabled: !details.email }}
-                  disabled={!details.email}
-                  style={[styles.officeButton, !details.email && styles.officeButtonDisabled]}>
-                  <Text style={styles.officeButtonText}>Email</Text>
-                </Pressable>
-              </View>
-            </View>
-            <Text style={styles.unavailableNote}>{unavailableDetail} These fields can fill in as the missionary shares them.</Text>
-          </View>
-        )}
       </View>
-    </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.white },
+  scrollView: { flex: 1 },
   scrollContent: {
     flexGrow: 1,
     paddingHorizontal: spacing.lg,
@@ -296,16 +287,6 @@ const styles = StyleSheet.create({
     padding: spacing.xl,
     backgroundColor: colors.white,
   },
-  backButton: {
-    alignSelf: 'flex-start',
-    minHeight: 44,
-    justifyContent: 'center',
-    paddingHorizontal: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 9,
-  },
-  backText: { color: colors.navy, fontSize: 15, fontWeight: '600' },
   missionaryHeader: { gap: spacing.xs, paddingVertical: spacing.xs },
   pageTitle: { color: colors.navy, fontSize: 24, fontWeight: '700' },
   missionName: { color: colors.textSecondary, fontSize: 15 },
@@ -351,34 +332,6 @@ const styles = StyleSheet.create({
   timelineTitle: { color: colors.text, fontSize: 15, fontWeight: '600' },
   currentText: { color: colors.navy, fontWeight: '700' },
   mutedText: { color: colors.textSecondary, fontSize: 13, lineHeight: 19 },
-  sectionIntro: { color: colors.text, fontSize: 14, lineHeight: 21 },
-  checklist: { gap: spacing.sm },
-  checkRow: {
-    minHeight: 60,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    padding: spacing.md,
-    borderWidth: 1,
-    borderColor: '#D6DEE6',
-    borderRadius: 11,
-    backgroundColor: colors.white,
-  },
-  checkbox: {
-    width: 22,
-    height: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1.5,
-    borderColor: colors.navy,
-    borderRadius: 5,
-  },
-  checkboxChecked: { backgroundColor: colors.navy },
-  checkmark: { color: colors.white, fontSize: 15, lineHeight: 18, fontWeight: '700' },
-  checkCopy: { flex: 1, gap: 2 },
-  checkTitle: { color: colors.text, fontSize: 14, fontWeight: '600' },
-  ponderBox: { gap: spacing.sm, paddingTop: spacing.md, borderTopWidth: 1, borderTopColor: '#E0E6EB' },
-  ponderText: { color: colors.navy, fontSize: 15, lineHeight: 22 },
   cardTitle: { color: colors.navy, fontSize: 17, fontWeight: '700' },
   guessEntry: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   textInput: {
@@ -474,6 +427,21 @@ const styles = StyleSheet.create({
   officeButtonDisabled: { borderColor: '#B9C4CE', backgroundColor: '#F6F8FA' },
   officeButtonText: { color: colors.navy, fontSize: 14, fontWeight: '600' },
   unavailableNote: { color: colors.textSecondary, fontSize: 13, lineHeight: 19, paddingHorizontal: spacing.xs },
+  homeAction: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    backgroundColor: colors.white,
+  },
+  homeActionButton: {
+    minHeight: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 10,
+    backgroundColor: colors.navy,
+  },
+  homeActionText: { color: colors.white, fontSize: 15, fontWeight: '700' },
   homeLink: { color: colors.navy, fontSize: 16, fontWeight: '600' },
   pressed: { opacity: 0.78 },
 });

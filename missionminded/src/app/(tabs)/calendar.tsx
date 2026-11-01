@@ -144,7 +144,7 @@ export default function CalendarScreen() {
                 params: { missionaryId: missionary?.id ?? '', date: dateKey(selectedDate) },
               } as Href)}
               style={({ pressed }) => [styles.addAppointmentButton, pressed && styles.pressed]}>
-              <Text style={styles.addAppointmentButtonText}>Add appt</Text>
+              <Text style={styles.addAppointmentButtonText}>Add appointment</Text>
             </Pressable>
           </View>
           {selectedDayAppointments.length ? selectedDayAppointments.map((item) => (

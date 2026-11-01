@@ -36,6 +36,7 @@ export default function AddAppointmentScreen() {
   const [period, setPeriod] = useState<'AM' | 'PM'>('AM');
   const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
   const missionary = missionaries.find((item) => item.id === selectedMissionaryId) ?? missionaries[0];
   const firstDayOfMonth = new Date(month.getFullYear(), month.getMonth(), 1).getDay();
   const daysInMonth = new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate();
@@ -48,7 +49,7 @@ export default function AddAppointmentScreen() {
     setMonth((current) => new Date(current.getFullYear(), current.getMonth() + amount, 1));
   };
 
-  const saveAppointment = () => {
+  const saveAppointment = async () => {
     const cleanTitle = title.trim();
     if (!cleanTitle) {
       setError('Add a title for this appointment.');
@@ -69,8 +70,15 @@ export default function AddAppointmentScreen() {
       0,
       0,
     );
-    addAppointment({ missionaryId: missionary.id, title: cleanTitle, startsAt: startsAt.toISOString() });
-    router.back();
+    setSaving(true);
+    try {
+      await addAppointment({ missionaryId: missionary.id, title: cleanTitle, startsAt: startsAt.toISOString() });
+      router.back();
+    } catch {
+      setError('Could not save this appointment. Check your connection and try again.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -199,11 +207,13 @@ export default function AddAppointmentScreen() {
           {error ? <Text accessibilityRole="alert" style={styles.errorText}>{error}</Text> : null}
           <Pressable
             accessibilityRole="button"
-            onPress={saveAppointment}
+            accessibilityState={{ disabled: saving }}
+            disabled={saving}
+            onPress={() => void saveAppointment()}
             style={({ pressed }) => [styles.saveButton, pressed && styles.pressed]}>
-            <Text style={styles.saveButtonText}>Save appointment</Text>
+            <Text style={styles.saveButtonText}>{saving ? 'Saving…' : 'Save appointment'}</Text>
           </Pressable>
-          <Text style={styles.notice}>Appointments stay on this device for this session. If notifications are enabled in Profile, this device will remind you one day before.</Text>
+          <Text style={styles.notice}>Appointments sync to your account. If notifications are enabled in Profile, this device will remind you one day before.</Text>
         </View>
       </View>
     </ScrollView>
