@@ -10,7 +10,9 @@ import { MissionariesProvider } from '@/data/missionaries';
 import { colors } from '@/theme/colors';
 
 function RootStack() {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
+
+  if (loading) return null;
 
   return (
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#FFFFFF' } }}>
@@ -18,6 +20,7 @@ function RootStack() {
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="missionary/[id]" />
         <Stack.Screen name="link-missionary" />
+        <Stack.Screen name="add-appointment" />
       </Stack.Protected>
       <Stack.Protected guard={!user}>
         <Stack.Screen name="(auth)/login" />

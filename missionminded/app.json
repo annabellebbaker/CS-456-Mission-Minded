@@ -7,9 +7,15 @@
     "icon": "./assets/images/icon.png",
     "scheme": "missionminded",
     "userInterfaceStyle": "automatic",
+    "owner": "cs-456-mission-minded",
+    "extra": {
+      "eas": {
+        "projectId": "d3472bec-087e-4ce2-ac3b-517f212b1651"
+      }
+    },
     "ios": {
       "icon": "./assets/expo.icon",
-      "googleServicesFile": "./GoogleService-Info.plist"
+      "bundleIdentifier": "com.anonymous.missionminded"
     },
     "android": {
       "adaptiveIcon": {
@@ -19,8 +25,7 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.missionminded",
-      "googleServicesFile": "./google-services.json"
+      "package": "com.anonymous.missionminded"
     },
     "web": {
       "output": "server",
@@ -35,17 +40,7 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 76
         }
-      ],
-      [
-        "expo-build-properties",
-        {
-          "ios": {
-            "useFrameworks": "dynamic"
-          }
-        }
-      ],
-      "@react-native-firebase/app",
-      "@react-native-firebase/auth"
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

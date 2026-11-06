@@ -1,4 +1,5 @@
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { router } from 'expo-router';
 
 import { AppText as Text } from '@/components/app-text';
 import { CheckRow } from '@/components/check-row';
@@ -37,7 +38,21 @@ function PackingSection({ title, items, missionaryId }: { title: string; items: 
 export default function PackingScreen() {
   const { missionaries, getById, selectedId } = useMissionaries();
   const missionary = getById(selectedId) ?? missionaries[0];
-  const missionKnown = missionary.phase !== 'preparing';
+  const missionKnown = missionary?.phase !== 'preparing';
+
+  if (!missionary) {
+    return (
+      <ScrollView style={styles.screen} contentContainerStyle={styles.scrollContent}>
+        <View style={styles.content}>
+          <Text style={styles.pageTitle}>Packing list</Text>
+          <Text style={styles.caption}>Link a missionary first to build a packing list.</Text>
+          <Pressable accessibilityRole="button" onPress={() => router.push('/link-missionary')} style={styles.dashedButton}>
+            <Text style={styles.dashedButtonText}>+ Link a missionary</Text>
+          </Pressable>
+        </View>
+      </ScrollView>
+    );
+  }
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -94,5 +109,15 @@ const styles = StyleSheet.create({
     borderColor: '#B9C4CE',
     borderRadius: 12,
   },
+  dashedButton: {
+    minHeight: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: colors.navy,
+    borderRadius: 12,
+  },
+  dashedButtonText: { color: colors.navy, fontSize: 14, fontWeight: '600' },
   comingLaterText: { color: colors.textSecondary, fontSize: 14, textAlign: 'center' },
 });

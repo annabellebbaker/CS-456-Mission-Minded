@@ -73,7 +73,7 @@ export default function AddAppointmentScreen() {
     );
     setSaving(true);
     try {
-      addCalendarItem(missionary.id, cleanTitle, startsAt.toISOString().slice(0, 10));
+      await addCalendarItem(missionary.id, cleanTitle, startsAt.toISOString().slice(0, 10));
       router.back();
     } catch {
       setError('Could not save this appointment. Check your connection and try again.');

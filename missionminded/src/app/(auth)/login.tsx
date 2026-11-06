@@ -13,22 +13,43 @@ import { useAuth } from '@/data/auth';
 import { colors, spacing } from '@/theme/colors';
 
 export default function LoginScreen() {
-  const { signIn } = useAuth();
+  const { signIn, createAccount, setupError } = useAuth();
+  const [creatingAccount, setCreatingAccount] = useState(false);
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
+    if (creatingAccount && !name.trim()) {
+      setError('Enter your name to create an account.');
+      return;
+    }
     if (!email.trim() || !password) {
       setError('Please enter your email and password.');
       return;
     }
-    if (!signIn(email, password)) {
-      setError('Incorrect email or password.');
-      return;
+
+    setSaving(true);
+    try {
+      if (creatingAccount) await createAccount(name, email, password);
+      else await signIn(email, password);
+      setError('');
+    } catch (caughtError) {
+      const code = (caughtError as { code?: string })?.code;
+      setError(setupError || (code === 'auth/email-already-in-use'
+        ? 'An account already uses that email. Log in instead.'
+        : code === 'auth/invalid-email'
+          ? 'Enter a valid email address.'
+          : code === 'auth/weak-password'
+            ? 'Choose a password with at least 6 characters.'
+            : creatingAccount
+              ? 'Could not create your account. Check your connection and try again.'
+              : 'Email or password did not match an account.'));
+    } finally {
+      setSaving(false);
     }
-    // The root layout sends signed-in users to Home.
-    setError('');
   };
 
   return (
@@ -45,6 +66,24 @@ export default function LoginScreen() {
           </View>
 
           <View style={styles.card}>
+            {!!setupError && (
+              <Text accessibilityRole="alert" style={styles.error}>
+                {setupError}
+              </Text>
+            )}
+            {creatingAccount && (
+              <View style={styles.field}>
+                <Text style={styles.label}>NAME</Text>
+                <TextInput
+                  accessibilityLabel="Name"
+                  value={name}
+                  onChangeText={setName}
+                  autoCapitalize="words"
+                  textContentType="name"
+                  style={styles.textInput}
+                />
+              </View>
+            )}
             <View style={styles.field}>
               <Text style={styles.label}>EMAIL</Text>
               <TextInput
@@ -70,7 +109,7 @@ export default function LoginScreen() {
                 autoCapitalize="none"
                 textContentType="password"
                 returnKeyType="go"
-                onSubmitEditing={handleLogin}
+                onSubmitEditing={() => void handleLogin()}
                 style={styles.textInput}
               />
             </View>
@@ -83,9 +122,22 @@ export default function LoginScreen() {
 
             <Pressable
               accessibilityRole="button"
-              onPress={handleLogin}
-              style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}>
-              <Text style={styles.primaryButtonText}>Log in</Text>
+              disabled={saving}
+              onPress={() => void handleLogin()}
+              style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed, saving && styles.disabled]}>
+              <Text style={styles.primaryButtonText}>{saving ? 'Please wait…' : creatingAccount ? 'Create account' : 'Log in'}</Text>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              disabled={saving}
+              onPress={() => {
+                setCreatingAccount((value) => !value);
+                setError('');
+              }}
+              style={({ pressed }) => [styles.modeButton, pressed && styles.pressed]}>
+              <Text style={styles.modeButtonText}>
+                {creatingAccount ? 'Already have an account? Log in' : 'Create an account'}
+              </Text>
             </Pressable>
           </View>
         </View>
@@ -179,6 +231,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
   },
+  modeButton: { minHeight: 42, alignItems: 'center', justifyContent: 'center' },
+  modeButtonText: { color: colors.navy, fontSize: 14, fontWeight: '600' },
+  disabled: { opacity: 0.6 },
   pressed: {
     opacity: 0.75,
   },

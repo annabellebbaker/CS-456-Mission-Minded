@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { router } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 
 import { AppText as Text } from '@/components/app-text';
@@ -36,14 +37,15 @@ export default function CalendarScreen() {
   const { missionaries, getById, selectedId, addCalendarItem, checked, toggleChecked } = useMissionaries();
   const missionary = getById(selectedId) ?? missionaries[0];
   const today = new Date();
-  const [month, setMonth] = useState(() => initialMonth(missionary.calendar.map((item) => item.date), today));
+  const [month, setMonth] = useState(() => initialMonth(missionary?.calendar.map((item) => item.date) ?? [], today));
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [addText, setAddText] = useState('');
+  const [saveError, setSaveError] = useState('');
 
-  const next = getNextMilestone(missionary);
+  const next = missionary ? getNextMilestone(missionary) : undefined;
   const monthPrefix = toKey(month).slice(0, 7);
-  const monthItems = missionary.calendar
+  const monthItems = (missionary?.calendar ?? [])
     .filter((item) => item.date.startsWith(monthPrefix))
     .sort((a, b) => a.date.localeCompare(b.date));
   const busyDays = new Set(monthItems.map((item) => item.date));
@@ -62,13 +64,32 @@ export default function CalendarScreen() {
 
   const appointmentDay = selectedDay ?? toKey(today);
 
-  const saveAppointment = () => {
+  const saveAppointment = async () => {
     const title = addText.trim();
-    if (!title) return;
-    addCalendarItem(missionary.id, title, appointmentDay);
-    setAddText('');
-    setAddOpen(false);
+    if (!title || !missionary) return;
+    try {
+      await addCalendarItem(missionary.id, title, appointmentDay);
+      setAddText('');
+      setAddOpen(false);
+      setSaveError('');
+    } catch {
+      setSaveError('Could not save this appointment. Check your connection and try again.');
+    }
   };
+
+  if (!missionary) {
+    return (
+      <ScrollView style={styles.screen} contentContainerStyle={styles.scrollContent}>
+        <View style={styles.content}>
+          <Text style={styles.pageTitle}>Calendar</Text>
+          <Text style={styles.emptyText}>Link a missionary first to create appointments and view milestones.</Text>
+          <Pressable accessibilityRole="button" onPress={() => router.push('/link-missionary')} style={styles.dashedButton}>
+            <Text style={styles.dashedButtonText}>+ Link a missionary</Text>
+          </Pressable>
+        </View>
+      </ScrollView>
+    );
+  }
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -165,16 +186,17 @@ export default function CalendarScreen() {
                 autoFocus
                 value={addText}
                 onChangeText={setAddText}
-                onSubmitEditing={saveAppointment}
+                onSubmitEditing={() => void saveAppointment()}
                 placeholder="e.g. Passport photos"
                 placeholderTextColor="#6F7C88"
                 returnKeyType="done"
                 style={styles.textInput}
               />
-              <Pressable accessibilityRole="button" onPress={saveAppointment} style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}>
+              <Pressable accessibilityRole="button" onPress={() => void saveAppointment()} style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}>
                 <Text style={styles.primaryButtonText}>Save</Text>
               </Pressable>
             </View>
+            {!!saveError && <Text accessibilityRole="alert" style={styles.errorText}>{saveError}</Text>}
             <Text style={styles.hint}>Tap a day on the calendar to pick a different date.</Text>
           </View>
         ) : (
@@ -215,6 +237,7 @@ const styles = StyleSheet.create({
   eyebrow: { color: colors.textSecondary, fontSize: 12, fontWeight: '700', letterSpacing: 0.8 },
   listCard: { paddingHorizontal: spacing.md, borderWidth: 1, borderColor: '#D6DEE6', borderRadius: 16 },
   emptyText: { paddingVertical: spacing.lg, color: colors.textSecondary, fontSize: 14, textAlign: 'center' },
+  errorText: { color: '#A12626', fontSize: 13 },
   addForm: { gap: spacing.sm },
   addLabel: { color: colors.navy, fontSize: 13, fontWeight: '600' },
   addRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },

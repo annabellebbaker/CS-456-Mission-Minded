@@ -5,10 +5,11 @@ import { colors } from '@/theme/colors';
 
 /** The five mission phases as dots, with the current one highlighted. `onDark` is for navy backgrounds. */
 export function PhaseTracker({ phase, onDark = false }: { phase: MissionPhase; onDark?: boolean }) {
-  const activeIndex = missionPhases.indexOf(phase);
+  const currentPhase = missionPhases.includes(phase) ? phase : 'preparing';
+  const activeIndex = missionPhases.indexOf(currentPhase);
 
   return (
-    <View accessibilityLabel={`Mission phase: ${phaseInfo[phase].label}`} style={styles.tracker} testID="phase-tracker">
+    <View accessibilityLabel={`Mission phase: ${phaseInfo[currentPhase].label}`} style={styles.tracker} testID="phase-tracker">
       {missionPhases.map((item, index) => {
         const complete = index < activeIndex;
         const current = index === activeIndex;

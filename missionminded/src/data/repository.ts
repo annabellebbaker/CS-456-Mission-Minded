@@ -279,22 +279,3 @@ export function getMissionBoundary(missionId: string): MissionBoundary | undefin
   const missions = missionBoundaries.missions as unknown as Record<string, MissionBoundary>;
   return missions[missionId];
 }
-
-export type User = {
-  name: string;
-  email: string;
-  ward: string;
-};
-
-// Phase 1 mock accounts. Phase 2 replaces signIn with Firebase Auth.
-const mockUsers = [
-  { name: 'Annabelle', email: 'annabelle@example.com', password: 'mission123', ward: 'Oak Hills 4th Ward · Provo Utah Stake' },
-  { name: 'Sophia', email: 'sophia@example.com', password: 'elder456', ward: 'Pleasant View 3rd Ward · Provo Utah Stake' },
-];
-
-/** Check an email and password against the mock accounts. */
-export function signIn(email: string, password: string): User | null {
-  const cleanEmail = email.trim().toLowerCase();
-  const match = mockUsers.find((user) => user.email === cleanEmail && user.password === password);
-  return match ? { name: match.name, email: match.email, ward: match.ward } : null;
-}

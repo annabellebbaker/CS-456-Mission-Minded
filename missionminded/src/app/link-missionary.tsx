@@ -49,10 +49,11 @@ export default function LinkMissionaryScreen() {
   const [mtcDate, setMtcDate] = useState('');
   const [missionLength, setMissionLength] = useState('');
   const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
 
   const goBack = () => (router.canGoBack() ? router.back() : router.replace('/'));
 
-  const save = () => {
+  const save = async () => {
     if (!name.trim()) {
       setError("Please enter the missionary's name.");
       return;
@@ -63,15 +64,22 @@ export default function LinkMissionaryScreen() {
       return;
     }
 
-    const missionary = linkMissionary({
-      name,
-      relationship,
-      missionName,
-      mtcDate: parsedDate,
-      missionLength: missionLength === 'Not sure yet' ? '' : missionLength,
-    });
-    setSelectedId(missionary.id);
-    router.replace({ pathname: '/missionary/[id]', params: { id: missionary.id } });
+    setSaving(true);
+    try {
+      const missionary = await linkMissionary({
+        name,
+        relationship,
+        missionName,
+        mtcDate: parsedDate,
+        missionLength: missionLength === 'Not sure yet' ? '' : missionLength,
+      });
+      setSelectedId(missionary.id);
+      router.replace({ pathname: '/missionary/[id]', params: { id: missionary.id } });
+    } catch {
+      setError('Could not save this missionary. Check your connection and try again.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -131,8 +139,8 @@ export default function LinkMissionaryScreen() {
               </Text>
             )}
 
-            <Pressable accessibilityRole="button" onPress={save} style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}>
-              <Text style={styles.primaryButtonText}>Save & connect</Text>
+            <Pressable accessibilityRole="button" disabled={saving} onPress={() => void save()} style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed, saving && styles.disabled]}>
+              <Text style={styles.primaryButtonText}>{saving ? 'Saving…' : 'Save & connect'}</Text>
             </Pressable>
           </View>
         </View>
@@ -193,4 +201,5 @@ const styles = StyleSheet.create({
   },
   primaryButtonText: { color: colors.white, fontSize: 16, fontWeight: '700' },
   pressed: { opacity: 0.78 },
+  disabled: { opacity: 0.6 },
 });
