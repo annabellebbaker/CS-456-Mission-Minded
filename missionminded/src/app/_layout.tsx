@@ -1,6 +1,8 @@
 import { Stack } from 'expo-router';
 import type { ReactNode } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
+import { useFonts } from 'expo-font';
+import { ScopeOne_400Regular } from '@expo-google-fonts/scope-one';
 
 import { ScriptureLoadingOverlay } from '@/components/scripture-loading-overlay';
 import { AuthProvider, useAuth } from '@/data/auth';
@@ -36,6 +38,9 @@ function PhoneFrame({ children }: { children: ReactNode }) {
 }
 
 export default function RootLayout() {
+  const [fontsLoaded, fontError] = useFonts({ ScopeOne: ScopeOne_400Regular });
+  if (!fontsLoaded && !fontError) return null;
+
   return (
     <AuthProvider>
       <MissionariesProvider>

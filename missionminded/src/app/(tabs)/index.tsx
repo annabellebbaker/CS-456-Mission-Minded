@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
+import { AppText as Text } from '@/components/app-text';
 import { PhaseTracker } from '@/components/phase-tracker';
 import { useAuth } from '@/data/auth';
 import { useMissionaries } from '@/data/missionaries';

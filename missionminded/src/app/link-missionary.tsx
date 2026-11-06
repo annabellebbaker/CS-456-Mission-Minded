@@ -6,12 +6,11 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Text,
-  TextInput,
   View,
   type TextInputProps,
 } from 'react-native';
 
+import { AppText as Text, AppTextInput as TextInput } from '@/components/app-text';
 import { useMissionaries } from '@/data/missionaries';
 import { colors, spacing } from '@/theme/colors';
 

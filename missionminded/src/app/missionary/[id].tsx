@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Link, router, useLocalSearchParams } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
+import { AppText as Text, AppTextInput as TextInput } from '@/components/app-text';
 import { MissionMap } from '@/components/mission-map';
 import { PhaseTracker } from '@/components/phase-tracker';
 import { useMissionaries } from '@/data/missionaries';

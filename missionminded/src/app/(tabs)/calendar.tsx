@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 
+import { AppText as Text } from '@/components/app-text';
 import { CheckRow } from '@/components/check-row';
 import { MissionaryPicker } from '@/components/missionary-picker';
 import { useMissionaries } from '@/data/missionaries';

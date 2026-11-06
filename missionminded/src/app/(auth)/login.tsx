@@ -5,11 +5,10 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Text,
-  TextInput,
   View,
 } from 'react-native';
 
+import { AppText as Text, AppTextInput as TextInput } from '@/components/app-text';
 import { useAuth } from '@/data/auth';
 import { colors, spacing } from '@/theme/colors';
 

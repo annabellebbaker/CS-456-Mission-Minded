@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { usePathname } from 'expo-router';
 
+import { AppText as Text } from '@/components/app-text';
 import { colors, spacing } from '@/theme/colors';
 
 const loadingThoughts = [

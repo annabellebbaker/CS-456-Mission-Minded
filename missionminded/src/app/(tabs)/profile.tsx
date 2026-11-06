@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { router } from 'expo-router';
-import { Platform, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
 
+import { AppText as Text } from '@/components/app-text';
 import { useAuth } from '@/data/auth';
 import { useMissionaries } from '@/data/missionaries';
 import { colors, spacing } from '@/theme/colors';

@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { Image } from 'expo-image';
-import { StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
+import { StyleSheet, View, type LayoutChangeEvent } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
+import { AppText as Text } from '@/components/app-text';
 import type { MissionBoundary } from '@/data/repository';
 import { colors, spacing } from '@/theme/colors';
 
