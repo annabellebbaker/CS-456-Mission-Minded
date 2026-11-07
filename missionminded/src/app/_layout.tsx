@@ -4,7 +4,6 @@ import { Platform, StyleSheet, View } from 'react-native';
 import { useFonts } from 'expo-font';
 import { ScopeOne_400Regular } from '@expo-google-fonts/scope-one';
 
-import { ScriptureLoadingOverlay } from '@/components/scripture-loading-overlay';
 import { AuthProvider, useAuth } from '@/data/auth';
 import { MissionariesProvider } from '@/data/missionaries';
 import { colors } from '@/theme/colors';
@@ -49,7 +48,6 @@ export default function RootLayout() {
       <MissionariesProvider>
         <PhoneFrame>
           <RootStack />
-          <ScriptureLoadingOverlay />
         </PhoneFrame>
       </MissionariesProvider>
     </AuthProvider>

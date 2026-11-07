@@ -5,10 +5,8 @@ import { AppText as Text } from '@/components/app-text';
 import { PhaseTracker } from '@/components/phase-tracker';
 import { useAuth } from '@/data/auth';
 import { useMissionaries } from '@/data/missionaries';
-import { getThoughtForToday, type MissionaryDetails } from '@/data/repository';
+import type { MissionaryDetails } from '@/data/repository';
 import { colors, spacing } from '@/theme/colors';
-
-const thoughtForToday = getThoughtForToday();
 
 function MissionaryCard({ missionary }: { missionary: MissionaryDetails }) {
   return (
@@ -55,19 +53,9 @@ export default function HomeScreen() {
 
         <Text style={styles.greeting}>Hi, {user?.name ?? 'there'}.</Text>
 
-        <View style={styles.thoughtCard}>
-          <View style={styles.thoughtAccent} />
-          <View style={styles.thoughtCopy}>
-            <Text style={styles.sectionEyebrow}>THOUGHT FOR TODAY</Text>
-            <Text style={styles.thoughtText}>“{thoughtForToday.text}”</Text>
-            <Text style={styles.thoughtReference}>— {thoughtForToday.reference}</Text>
-          </View>
-        </View>
-
         <View style={styles.missionariesSection}>
           <View style={styles.sectionHeading}>
             <Text style={styles.sectionEyebrow}>YOUR MISSIONARIES</Text>
-            <Text style={styles.sectionCaption}>Following their journey</Text>
           </View>
           <View style={styles.cardList}>
             {missionaries.map((missionary) => (
@@ -132,47 +120,17 @@ const styles = StyleSheet.create({
     fontSize: 27,
     fontWeight: '700',
   },
-  thoughtCard: {
-    flexDirection: 'row',
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: '#D7E3EE',
-    borderRadius: 16,
-    backgroundColor: '#F5F9FC',
-  },
-  thoughtAccent: {
-    width: 5,
-    backgroundColor: colors.lightBlue,
-  },
-  thoughtCopy: {
-    flex: 1,
-    padding: spacing.lg,
-    gap: spacing.sm,
-  },
   sectionEyebrow: {
     color: colors.textSecondary,
     fontSize: 12,
     fontWeight: '700',
     letterSpacing: 0.8,
   },
-  thoughtText: {
-    color: colors.navy,
-    fontSize: 16,
-    lineHeight: 24,
-  },
-  thoughtReference: {
-    color: colors.textSecondary,
-    fontSize: 13,
-  },
   missionariesSection: {
     gap: spacing.md,
   },
   sectionHeading: {
     gap: spacing.xs,
-  },
-  sectionCaption: {
-    color: colors.textSecondary,
-    fontSize: 14,
   },
   cardList: {
     gap: spacing.md,

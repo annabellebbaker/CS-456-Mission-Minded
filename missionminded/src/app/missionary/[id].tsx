@@ -10,7 +10,6 @@ import {
   getMissionBoundary,
   missionPhases,
   phaseInfo,
-  type GrowingTogetherItem,
   type MissionaryDetails,
   type Milestone,
   type MissionPhase,
@@ -86,38 +85,11 @@ function DetailValue({ label, value }: { label: string; value: string | null }) 
   );
 }
 
-function ChecklistRow({
-  item,
-  checked,
-  onToggle,
-}: {
-  item: GrowingTogetherItem;
-  checked: boolean;
-  onToggle: () => void;
-}) {
-  return (
-    <Pressable
-      accessibilityRole="checkbox"
-      accessibilityState={{ checked }}
-      onPress={onToggle}
-      style={({ pressed }) => [styles.checkRow, pressed && styles.pressed]}>
-      <View style={[styles.checkbox, checked && styles.checkboxChecked]}>
-        {checked && <Text style={styles.checkmark}>✓</Text>}
-      </View>
-      <View style={styles.checkCopy}>
-        <Text style={styles.checkTitle}>{item.title}</Text>
-        <Text style={styles.mutedText}>{item.description}</Text>
-      </View>
-    </Pressable>
-  );
-}
-
 export default function MissionaryScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { getById } = useMissionaries();
   const missionary = getById(Array.isArray(id) ? id[0] : id);
   const [detailsExpanded, setDetailsExpanded] = useState(false);
-  const [completedItems, setCompletedItems] = useState<Record<string, boolean>>({});
   const [guesses, setGuesses] = useState(() => missionary?.guesses ?? []);
   const [guessText, setGuessText] = useState('');
   const [callRevealed, setCallRevealed] = useState(false);
@@ -130,10 +102,6 @@ export default function MissionaryScreen() {
       </View>
     );
   }
-
-  const toggleChecklistItem = (itemId: string) => {
-    setCompletedItems((current) => ({ ...current, [itemId]: !current[itemId] }));
-  };
 
   const addGuess = () => {
     const trimmedGuess = guessText.trim();
@@ -175,26 +143,6 @@ export default function MissionaryScreen() {
         <View style={styles.sectionCard}>
           <Text style={styles.sectionEyebrow}>MOMENTS ALONG THE WAY</Text>
           <MilestoneList milestones={missionary.milestones} currentPhase={missionary.phase} />
-        </View>
-
-        <View style={styles.sectionCard}>
-          <Text style={styles.sectionEyebrow}>GROWING TOGETHER THIS WEEK</Text>
-          <Text style={styles.sectionIntro}>{missionary.growingTogetherIntro}</Text>
-          <View style={styles.checklist}>
-            {missionary.growingTogether.map((item) => (
-              <ChecklistRow
-                key={item.id}
-                item={item}
-                checked={Boolean(completedItems[item.id])}
-                onToggle={() => toggleChecklistItem(item.id)}
-              />
-            ))}
-          </View>
-          <View style={styles.ponderBox}>
-            <Text style={styles.sectionEyebrow}>TO PONDER AS A FAMILY</Text>
-            <Text style={styles.ponderText}>“{missionary.ponderText}”</Text>
-            <Text style={styles.mutedText}>— {missionary.ponderReference}</Text>
-          </View>
         </View>
 
         {missionary.phase === 'preparing' && (
@@ -392,34 +340,6 @@ const styles = StyleSheet.create({
   milestoneTitleDone: { color: colors.navy },
   milestoneWhen: { color: colors.textSecondary, fontSize: 12, fontWeight: '600' },
   mutedText: { color: colors.textSecondary, fontSize: 13, lineHeight: 19 },
-  sectionIntro: { color: colors.text, fontSize: 14, lineHeight: 21 },
-  checklist: { gap: spacing.sm },
-  checkRow: {
-    minHeight: 60,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    padding: spacing.md,
-    borderWidth: 1,
-    borderColor: '#D6DEE6',
-    borderRadius: 11,
-    backgroundColor: colors.white,
-  },
-  checkbox: {
-    width: 22,
-    height: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1.5,
-    borderColor: colors.navy,
-    borderRadius: 5,
-  },
-  checkboxChecked: { backgroundColor: colors.navy },
-  checkmark: { color: colors.white, fontSize: 15, lineHeight: 18, fontWeight: '700' },
-  checkCopy: { flex: 1, gap: 2 },
-  checkTitle: { color: colors.text, fontSize: 14, fontWeight: '600' },
-  ponderBox: { gap: spacing.sm, paddingTop: spacing.md, borderTopWidth: 1, borderTopColor: '#E0E6EB' },
-  ponderText: { color: colors.navy, fontSize: 15, lineHeight: 22 },
   cardTitle: { color: colors.navy, fontSize: 17, fontWeight: '700' },
   guessEntry: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   textInput: {

@@ -74,11 +74,6 @@ export type MissionaryDetails = {
 
 type MissionaryRecord = Omit<MissionaryDetails, 'status'>;
 
-const thoughtForToday = {
-  text: 'Be thou humble; and the Lord thy God shall lead thee by the hand, and give thee answer to thy prayers.',
-  reference: 'Doctrine and Covenants 112:10',
-};
-
 /** Packing items every missionary needs, whatever the mission. */
 export const packingEssentials = [
   'Scriptures & Preach My Gospel',
@@ -190,10 +185,6 @@ function describeStatus({ phase, missionDetails }: MissionaryRecord) {
 
 function withStatus(missionary: MissionaryRecord): MissionaryDetails {
   return { ...missionary, status: describeStatus(missionary) };
-}
-
-export function getThoughtForToday() {
-  return { ...thoughtForToday };
 }
 
 /** The Phase 1 sample missionaries. The in-memory store starts from these. */
