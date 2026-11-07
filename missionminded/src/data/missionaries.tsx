@@ -1,10 +1,11 @@
 import { arrayUnion, collection, doc, onSnapshot, setDoc, updateDoc } from 'firebase/firestore';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 
-import { useAuth } from '@/data/auth';
+import { PREVIEW_USER_ID, useAuth } from '@/data/auth';
 import { getFirebaseFirestore } from '@/data/firebase';
 import {
   buildLinkedMissionary,
+  getSampleMissionaries,
   type LinkMissionaryForm,
   missionPhases,
   phaseInfo,
@@ -181,6 +182,12 @@ export function MissionariesProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!user) return;
 
+    // Preview mode (dev only): sample missionaries kept in memory, nothing touches Firebase.
+    if (user.id === PREVIEW_USER_ID) {
+      setData({ userId: user.id, missionaries: getSampleMissionaries(), checked: {} });
+      return;
+    }
+
     const db = getFirebaseFirestore();
     const missionaryCollection = collection(db, 'users', user.id, 'missionaries');
     const checklistDocument = doc(db, 'users', user.id, 'settings', 'checklist');
@@ -215,6 +222,10 @@ export function MissionariesProvider({ children }: { children: ReactNode }) {
   const linkMissionary = useCallback(async (form: LinkMissionaryForm) => {
     if (!user) throw new Error('Sign in to link a missionary.');
     const missionary = buildLinkedMissionary(form);
+    if (user.id === PREVIEW_USER_ID) {
+      setData((current) => ({ ...current, missionaries: [...current.missionaries, missionary] }));
+      return missionary;
+    }
     const reference = doc(getFirebaseFirestore(), 'users', user.id, 'missionaries', missionary.id);
     await setDoc(reference, omitUndefined(missionary) as Record<string, unknown>);
     setData((current) => current.userId === user.id
@@ -226,6 +237,15 @@ export function MissionariesProvider({ children }: { children: ReactNode }) {
   const addCalendarItem = useCallback(async (missionaryId: string, title: string, date: string) => {
     if (!user) throw new Error('Sign in to add an appointment.');
     const item = { id: `${missionaryId}-${Date.now()}`, title, date };
+    if (user.id === PREVIEW_USER_ID) {
+      setData((current) => ({
+        ...current,
+        missionaries: current.missionaries.map((missionary) => missionary.id === missionaryId
+          ? { ...missionary, calendar: [...missionary.calendar, item] }
+          : missionary),
+      }));
+      return;
+    }
     const reference = doc(getFirebaseFirestore(), 'users', user.id, 'missionaries', missionaryId);
     await updateDoc(reference, { calendar: arrayUnion(item) });
   }, [user]);
@@ -236,6 +256,7 @@ export function MissionariesProvider({ children }: { children: ReactNode }) {
     setData((current) => current.userId === user.id
       ? { ...current, checked: nextChecked }
       : current);
+    if (user.id === PREVIEW_USER_ID) return;
     void setDoc(
       doc(getFirebaseFirestore(), 'users', user.id, 'settings', 'checklist'),
       { checked: nextChecked },

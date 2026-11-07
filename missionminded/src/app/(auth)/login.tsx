@@ -8,12 +8,14 @@ import {
   View,
 } from 'react-native';
 
+import { Image } from 'expo-image';
+
 import { AppText as Text, AppTextInput as TextInput } from '@/components/app-text';
 import { useAuth } from '@/data/auth';
 import { colors, spacing } from '@/theme/colors';
 
 export default function LoginScreen() {
-  const { signIn, createAccount, setupError } = useAuth();
+  const { signIn, createAccount, setupError, previewWithSampleData } = useAuth();
   const [creatingAccount, setCreatingAccount] = useState(false);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -59,8 +61,13 @@ export default function LoginScreen() {
       <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
         <View style={styles.content}>
           <View style={styles.brand}>
-            <View style={styles.brandMark} accessibilityElementsHidden>
-              <Text style={styles.brandMarkText}>M</Text>
+            <View style={styles.brandMark}>
+              <Image
+                source={require('../../../assets/images/brand/logo-white.png')}
+                style={styles.brandLogo}
+                contentFit="contain"
+                accessibilityLabel="MissionMinded logo"
+              />
             </View>
             <Text style={styles.brandName}>MISSION{'\n'}MINDED</Text>
           </View>
@@ -139,6 +146,14 @@ export default function LoginScreen() {
                 {creatingAccount ? 'Already have an account? Log in' : 'Create an account'}
               </Text>
             </Pressable>
+            {__DEV__ && (
+              <Pressable
+                accessibilityRole="button"
+                onPress={previewWithSampleData}
+                style={({ pressed }) => [styles.modeButton, pressed && styles.pressed]}>
+                <Text style={styles.previewButtonText}>Preview with sample data (dev only)</Text>
+              </Pressable>
+            )}
           </View>
         </View>
       </ScrollView>
@@ -168,17 +183,16 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   brandMark: {
-    width: 72,
-    height: 72,
+    width: 96,
+    height: 96,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 16,
+    borderRadius: 22,
     backgroundColor: colors.navy,
   },
-  brandMarkText: {
-    color: colors.lightBlue,
-    fontSize: 40,
-    fontWeight: '800',
+  brandLogo: {
+    width: 70,
+    height: 67,
   },
   brandName: {
     color: colors.navy,
@@ -233,6 +247,7 @@ const styles = StyleSheet.create({
   },
   modeButton: { minHeight: 42, alignItems: 'center', justifyContent: 'center' },
   modeButtonText: { color: colors.navy, fontSize: 14, fontWeight: '600' },
+  previewButtonText: { color: colors.textSecondary, fontSize: 13, textDecorationLine: 'underline' },
   disabled: { opacity: 0.6 },
   pressed: {
     opacity: 0.75,

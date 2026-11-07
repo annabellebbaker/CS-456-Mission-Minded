@@ -12,6 +12,9 @@ import { getFirebaseAuth, getFirebaseFirestore } from '@/data/firebase';
 
 export type User = { id: string; name: string; email: string; ward: string };
 
+/** Dev-only signed-in user that runs on sample data, no Firebase needed. */
+export const PREVIEW_USER_ID = 'preview';
+
 type AuthContextValue = {
   user: User | null;
   loading: boolean;
@@ -19,6 +22,8 @@ type AuthContextValue = {
   signIn: (email: string, password: string) => Promise<void>;
   createAccount: (name: string, email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
+  /** Dev only: skip login and browse the app with sample missionaries. */
+  previewWithSampleData: () => void;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -99,9 +104,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
   };
 
+  const signOut = async () => {
+    if (user?.id === PREVIEW_USER_ID) {
+      setUser(null);
+      return;
+    }
+    await firebaseSignOut(getFirebaseAuth());
+  };
+
+  const previewWithSampleData = () => {
+    if (!__DEV__) return;
+    setUser({ id: PREVIEW_USER_ID, name: 'Preview', email: '', ward: 'Sample ward' });
+  };
+
   return (
     <AuthContext.Provider
-      value={{ user, loading, setupError, signIn, createAccount, signOut: () => firebaseSignOut(getFirebaseAuth()) }}>
+      value={{ user, loading, setupError, signIn, createAccount, signOut, previewWithSampleData }}>
       {children}
     </AuthContext.Provider>
   );
