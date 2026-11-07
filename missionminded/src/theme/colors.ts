@@ -11,6 +11,8 @@ export const colors = {
   textSecondary: '#444444',
   border: '#888888',
   divider: '#CCCCCC',
+  tabInactive: '#9AA3AD',
+  tabActiveBg: '#E3ECF6',
 } as const;
 
 export const spacing = {
