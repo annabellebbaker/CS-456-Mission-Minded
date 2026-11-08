@@ -6,12 +6,12 @@ import { getFirebaseFirestore } from '@/data/firebase';
 import {
   buildLinkedMissionary,
   getSampleMissionaries,
+  getPhaseLabel,
   type LinkMissionaryForm,
   missionPhases,
-  phaseInfo,
   type CalendarItem,
   type GrowingTogetherItem,
-  type Milestone,
+  type PhaseMoment,
   type MissionPhase,
   type MissionaryDetails,
 } from '@/data/repository';
@@ -74,8 +74,14 @@ function normalizePhase(value: unknown, currentStage: unknown): MissionPhase {
   return stagePhases[stage] ?? 'preparing';
 }
 
-function normalizeMilestones(value: unknown, legacyJourney: unknown, phase: MissionPhase): Milestone[] {
-  const source = Array.isArray(value) ? value : Array.isArray(legacyJourney) ? legacyJourney : [];
+function normalizeMoments(value: unknown, legacyJourney: unknown, legacyMoments: unknown, phase: MissionPhase): PhaseMoment[] {
+  const source = Array.isArray(value)
+    ? value
+    : Array.isArray(legacyMoments)
+      ? legacyMoments
+      : Array.isArray(legacyJourney)
+        ? legacyJourney
+        : [];
   return source.flatMap((entry) => {
     const item = asRecord(entry);
     const title = asString(item.title).trim();
@@ -102,7 +108,7 @@ function normalizeMissionary(id: string, value: unknown): MissionaryDetails {
     ? { label: climateValue.label, items: climateValue.items.filter((item): item is string => typeof item === 'string') }
     : null;
 
-  const milestones = normalizeMilestones(raw.milestones, raw.journey, phase);
+  const moments = normalizeMoments(raw.moments, raw.journey, raw['milestones'], phase);
   const growingTogether = Array.isArray(raw.growingTogether)
     ? raw.growingTogether.flatMap((entry, index) => {
       const item = asRecord(entry);
@@ -141,9 +147,9 @@ function normalizeMissionary(id: string, value: unknown): MissionaryDetails {
     missionId: asString(raw.missionId),
     phase,
     phaseSince: asString(raw.phaseSince),
-    status: asString(raw.status, phaseInfo[phase].label),
+    status: asString(raw.status, getPhaseLabel(phase, phase)),
     language: asString(raw.language),
-    milestones,
+    moments,
     growingTogetherIntro: asString(raw.growingTogetherIntro),
     growingTogether,
     ponderText: asString(raw.ponderText),

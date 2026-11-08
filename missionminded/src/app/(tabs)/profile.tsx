@@ -8,13 +8,13 @@ import { useMissionaries } from '@/data/missionaries';
 import { colors, spacing } from '@/theme/colors';
 
 // Toggles only change saved settings for now. No real notifications yet (see spec Open Decisions).
-const reminderSettings = ['Milestone reminders', 'Prayer reminders'];
+const reminderSettings = ['Phase reminders', 'Prayer reminders'];
 
 export default function ProfileScreen() {
   const { user, signOut } = useAuth();
   const { missionaries } = useMissionaries();
   const [settings, setSettings] = useState<Record<string, boolean>>({
-    'Milestone reminders': true,
+    'Phase reminders': true,
     'Prayer reminders': false,
   });
 

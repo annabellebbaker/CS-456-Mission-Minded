@@ -1,6 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
 
-import { missionPhases, phaseInfo, type MissionPhase } from '@/data/repository';
+import { getPhaseLabel, missionPhases, type MissionPhase } from '@/data/repository';
 import { colors } from '@/theme/colors';
 
 /** The five mission phases as dots, with the current one highlighted. `onDark` is for navy backgrounds. */
@@ -9,7 +9,7 @@ export function PhaseTracker({ phase, onDark = false }: { phase: MissionPhase; o
   const activeIndex = missionPhases.indexOf(currentPhase);
 
   return (
-    <View accessibilityLabel={`Mission phase: ${phaseInfo[currentPhase].label}`} style={styles.tracker} testID="phase-tracker">
+    <View accessibilityLabel={`Mission phase: ${getPhaseLabel(currentPhase, currentPhase)}`} style={styles.tracker} testID="phase-tracker">
       {missionPhases.map((item, index) => {
         const complete = index < activeIndex;
         const current = index === activeIndex;
@@ -31,8 +31,8 @@ export function PhaseTracker({ phase, onDark = false }: { phase: MissionPhase; o
                 (current || complete) && (onDark ? styles.labelActiveOnDark : styles.labelActive),
                 current && styles.labelCurrent,
               ]}
-              numberOfLines={1}>
-              {phaseInfo[item].label}
+              numberOfLines={3}>
+              {getPhaseLabel(item, currentPhase)}
             </Text>
           </View>
         );

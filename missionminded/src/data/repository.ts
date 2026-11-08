@@ -1,20 +1,12 @@
 import missionBoundaries from '@/data/mission-boundaries.json';
+import type { MissionPhase } from '@/data/phase-labels';
 
-/** The big, mutually exclusive stages of a mission. A missionary is in exactly one. */
-export const missionPhases = ['preparing', 'called', 'mtc', 'serving', 'home'] as const;
-
-export type MissionPhase = (typeof missionPhases)[number];
-
-export const phaseInfo: Record<MissionPhase, { label: string; summary: string }> = {
-  preparing: { label: 'Preparing', summary: 'Papers are in. Waiting for the mission call.' },
-  called: { label: 'Called', summary: 'The call has come. Getting ready to enter the MTC.' },
-  mtc: { label: 'MTC', summary: 'Training at the Missionary Training Center.' },
-  serving: { label: 'Serving', summary: 'Out in the mission field.' },
-  home: { label: 'Home', summary: 'Returned home from the mission.' },
-};
+/** The ordered mission phases, their display data, and tense-aware label helper. */
+export { getPhaseLabel, missionPhases, phaseInfo } from '@/data/phase-labels';
+export type { MissionPhase } from '@/data/phase-labels';
 
 /** A smaller moment that happens within a phase, like a farewell talk or a transfer. */
-export type Milestone = {
+export type PhaseMoment = {
   title: string;
   description: string;
   phase: MissionPhase;
@@ -54,7 +46,7 @@ export type MissionaryDetails = {
   /** Generated from the phase and area, like "Serving in Wasilla". */
   status: string;
   language: string;
-  milestones: Milestone[];
+  moments: PhaseMoment[];
   growingTogetherIntro: string;
   growingTogether: GrowingTogetherItem[];
   ponderText: string;
@@ -96,7 +88,7 @@ const missionaries: MissionaryRecord[] = [
     phase: 'preparing',
     phaseSince: 'Since September',
     language: 'Spanish-speaking',
-    milestones: [
+    moments: [
       { title: 'Papers submitted', description: 'The first step is done', phase: 'preparing', when: 'September', done: true },
       { title: 'Mission call arrives', description: 'A day the family will remember', phase: 'preparing', when: 'Any day now', done: false },
       { title: 'Receiving his endowment', description: 'At the temple', phase: 'called', done: false },
@@ -139,7 +131,7 @@ const missionaries: MissionaryRecord[] = [
     phase: 'serving',
     phaseSince: 'Since May 2026',
     language: 'English-speaking',
-    milestones: [
+    moments: [
       { title: 'Entered the MTC', description: 'Three weeks in Provo', phase: 'mtc', when: 'Spring 2026', done: true },
       { title: 'First area: Eagle River', description: 'Where she first felt at home', phase: 'serving', when: 'May 2026', done: true },
       { title: 'Transferred to Wasilla', description: 'A new area and new people to love', phase: 'serving', when: 'September 2026', done: true },
@@ -165,6 +157,53 @@ const missionaries: MissionaryRecord[] = [
       items: ['Insulated winter coat', 'Waterproof snow boots', 'Thermal base layers', 'Gloves, hat & scarf', 'Ice traction cleats'],
     },
     missionDetails: { companion: null, area: 'Wasilla', leaders: null, office: null, phone: null, email: null },
+  },
+  {
+    id: 'david',
+    name: 'Elder David Kim',
+    shortName: 'Elder Kim',
+    firstName: 'David',
+    relationship: 'Friend',
+    missionId: 'japan-tokyo-south',
+    missionName: 'Japan Tokyo South Mission',
+    phase: 'mtc',
+    phaseSince: 'Since October 2026',
+    language: 'Japanese-speaking',
+    moments: [
+      { title: 'Entered the MTC', description: 'Beginning language and teaching training', phase: 'mtc', when: 'October 2026', done: true },
+      { title: 'Enters the field', description: 'Begins serving in the assigned area', phase: 'serving', when: 'January 2027', done: false },
+    ],
+    growingTogetherIntro: 'David is learning to teach and serve. Study alongside him:',
+    growingTogether: [{ id: 'pray-for-david', title: 'Pray for David', description: 'And for the people he will serve' }],
+    ponderText: 'I will go before your face. I will be on your right hand and on your left.',
+    ponderReference: 'Doctrine and Covenants 84:88',
+    guesses: [],
+    calendar: [],
+    climate: null,
+    missionDetails: { companion: null, area: null, leaders: null, office: null, phone: null, email: null },
+  },
+  {
+    id: 'claire',
+    name: 'Sister Claire Miller',
+    shortName: 'Sister Miller',
+    firstName: 'Claire',
+    relationship: 'Friend',
+    missionId: 'canada-calgary',
+    missionName: 'Canada Calgary Mission',
+    phase: 'home',
+    phaseSince: 'Since August 2026',
+    language: 'English-speaking',
+    moments: [
+      { title: 'Returned home', description: 'Welcomed home by family and friends', phase: 'home', when: 'August 2026', done: true },
+    ],
+    growingTogetherIntro: 'Claire is home and continuing to serve in new ways:',
+    growingTogether: [{ id: 'pray-for-claire', title: 'Pray with Claire', description: 'As she finds ways to keep serving' }],
+    ponderText: 'By small and simple things are great things brought to pass.',
+    ponderReference: 'Alma 37:6',
+    guesses: [],
+    calendar: [],
+    climate: null,
+    missionDetails: { companion: null, area: null, leaders: null, office: null, phone: null, email: null },
   },
 ];
 
@@ -192,7 +231,7 @@ export function getSampleMissionaries(): MissionaryDetails[] {
   return missionaries.map((missionary) =>
     withStatus({
       ...missionary,
-      milestones: [...missionary.milestones],
+      moments: [...missionary.moments],
       growingTogether: [...missionary.growingTogether],
       guesses: [...missionary.guesses],
       calendar: [...missionary.calendar],
@@ -201,9 +240,9 @@ export function getSampleMissionaries(): MissionaryDetails[] {
   );
 }
 
-/** The first milestone that hasn't happened yet. Calendar shows this instead of a countdown. */
-export function getNextMilestone(missionary: MissionaryDetails): Milestone | undefined {
-  return missionary.milestones.find((milestone) => !milestone.done);
+/** The first phase moment that hasn't happened yet. Calendar shows this instead of a countdown. */
+export function getNextMoment(missionary: MissionaryDetails): PhaseMoment | undefined {
+  return missionary.moments.find((moment) => !moment.done);
 }
 
 export type LinkMissionaryForm = {
@@ -239,7 +278,7 @@ export function buildLinkedMissionary(form: LinkMissionaryForm, today = new Date
     phase,
     phaseSince: 'Just linked',
     language: '',
-    milestones: [
+    moments: [
       { title: 'Enters the MTC', description: 'The start of the mission', phase: 'mtc', when: mtcWhen, done: phase === 'serving' },
       ...(form.missionLength
         ? [{ title: 'Returning home', description: `After ${form.missionLength}`, phase: 'home' as const, done: false }]

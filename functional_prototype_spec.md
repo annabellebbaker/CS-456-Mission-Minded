@@ -60,9 +60,10 @@ MissionMinded aims to provide those supporting missionaries with resources and b
 What matters most on the screen for the missionary supporter:
 
 1. A simple home page with a daily scripture thought and a card for each linked missionary
-2. A five-stage journey tracker on each missionary card (Called, Preparing, MTC, Serving, Home) with a plain-language status such as "Preparing to serve" or "Serving in Wasilla", instead of a large countdown number
+2. A five-stage journey tracker on each missionary card (Assigned, Called, MTC, Field, Home) with a plain-language status such as "Will be called" or "Serving in Wasilla", instead of a large countdown number
+   - The four phase labels map to internal IDs: preparing → Assigned, mtc → MTC, serving → Field, and home → Home. The existing called phase remains between Assigned and MTC. Tracker and phase-group labels use past tense before missionary.phase, present tense for the current phase, and future tense after it.
 3. A missionary page with:
-   - **Their journey**: a timeline of milestones (for example: mission call opened, receiving his endowment, farewell talk, enters the MTC, serving)
+   - **Their journey**: phase moments grouped by phase (for example: mission call opened, receiving his endowment, farewell talk, enters the MTC, serving)
    - **Growing together this week**: study and prayer actions the supporter can check off
    - **To ponder as a family**: a scripture for family reflection
    - **"Guess where this missionary is going on their mission?"** (pre-mission only)
@@ -74,7 +75,7 @@ What matters most on the screen for the missionary supporter:
 - A daily scripture thought on the home page
 - A weekly "Growing together" section for each missionary (for example, read Preach My Gospel or Alma 32 together, or pray for the missionary as a family)
 - A "To ponder as a family" scripture on each missionary page
-- Optional reminders in Profile settings: daily scripture thought, milestone reminders, prayer reminders
+- Optional reminders in Profile settings: daily scripture thought, phase reminders, prayer reminders
 
 ### Loading Experience
 
@@ -85,7 +86,7 @@ What matters most on the screen for the missionary supporter:
 | Tab              | Contents                                                                                                                                                                                                                                              |
 | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Home**         | Greeting; thought for today; "Your missionaries" cards with status and journey stage tracker; link a missionary. Tapping a card opens that missionary's page (journey, growing together, ponder as a family, guess game, expandable mission details). |
-| **Calendar**     | Missionary selector; **next milestone** (replaces the countdown); month calendar; missionary to-dos and appointments; add appointment                                                                                                                 |
+| **Calendar**     | Missionary selector; **next phase** with a tense-aware phase label (replaces the countdown); month calendar; missionary to-dos and appointments; add appointment                                                                                                                 |
 | **Packing List** | Missionary selector; essentials for all missions; mission-specific items for the mission's climate; shopping marked "coming later"                                                                                                                    |
 | **Profile**      | Supporter name and ward/stake; "Missionaries I support" with the supporter's relationship to each; link a missionary; settings toggles                                                                                                                |
 
@@ -98,11 +99,11 @@ Fields: missionary name, your relationship (for example Mom, Sister, Friend), mi
 - Mission map, companion, area, leaders, and office details appear **only inside Mission details** on the missionary page, not on Home or Profile.
 - Home shows status and the journey tracker only; detail lives one tap deeper.
 - Profile is now about the supporter: relationships, linking, and settings.
-- There is no numeric countdown. Calendar shows the next milestone instead.
+- There is no numeric countdown. Calendar shows the next phase and its next moment instead.
 
 ### Changes From the Original Vision
 
-- The countdown is replaced by journey stages and a next-milestone line, to be more personal and less data-focused.
+- The countdown is replaced by journey stages and a next-phase line, to be more personal and less data-focused.
 - Mission assignment details moved from the Profile tab to the missionary page (Mission details). This matters for usability testing, which should check whether supporters can easily find them there.
 - The during-mission progress bar and "days left" were replaced by the journey timeline.
 
@@ -110,6 +111,15 @@ Fields: missionary name, your relationship (for example Mom, Sister, Friend), mi
 
 - Shopping (discount codes, promo codes, and brand recommendations)
 - Paid ads from missionary clothing and essential outfitters
+
+---
+
+## Future work
+
+- Mission call upload, plus a tutorial for manual input when a user first opens the app
+- The MTC start date comes from the mission call; the app calculates the other dates
+- Data retention: remove or archive a missionary's data about two weeks after they return home
+- Automatically deriving the current phase from dates (today it comes from `missionary.phase`)
 
 ---
 
@@ -133,7 +143,7 @@ Fields: missionary name, your relationship (for example Mom, Sister, Friend), mi
 - **Functionality:** Four tabs with working interactions (checklists, expandable details, guess game, add appointment, link a missionary, settings toggles)
 - **Color:** Navy, light blue, and white, taken from the paper prototype
 - **Flow (wireframe v2):** Loading screen with scripture, then Home, then a missionary page. Login and account creation were in the paper prototype but are not shown in wireframe v2. See Open Decisions below for how Phase 1 handles them.
-- **Sample data:** Elder Jacob Thompson-Whitaker (Peru Lima North Mission, pre-mission, brother) and Sister Ana Taylor (Alaska Anchorage Mission, serving, cousin)
+- **Sample data:** Elder Jacob Thompson-Whitaker (Peru Lima North Mission, preparing, brother), Elder David Kim (MTC), Sister Ana Taylor (Alaska Anchorage Mission, serving, cousin), and Sister Claire Miller (home)
 
 ---
 
@@ -143,7 +153,7 @@ Fields: missionary name, your relationship (for example Mom, Sister, Friend), mi
 | --------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Home page is too busy, and info is repeated between home and profile                                            | Home reduced to a greeting, a scripture, and missionary cards; mission details moved into one expandable section on the missionary page; Profile focuses on the supporter           |
 | Make it less data-focused and more personal to the spirituality and testimony growth of a missionary and family | Added a daily scripture thought, a journey timeline, "Growing together this week" actions, and "To ponder as a family" scriptures; added prayer and scripture reminders in settings |
-| Countdowns are over-emphasized                                                                                  | Countdown removed; replaced by journey stages on Home and a next-milestone line on Calendar                                                                                         |
+| Countdowns are over-emphasized                                                                                  | Countdown removed; replaced by journey stages on Home and a next-phase line on Calendar                                                                                         |
 | Profile notes section may not be useful                                                                         | Notes section removed; Profile now shows relationships and settings                                                                                                                 |
 
 ---

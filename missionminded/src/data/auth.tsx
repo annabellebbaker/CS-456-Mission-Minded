@@ -56,7 +56,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               name: fallbackName,
               ward: '',
               stake: '',
-              settings: { appointmentReminders: false, milestoneReminders: false },
+              settings: { appointmentReminders: false, phaseReminders: false },
             });
           }
 
@@ -100,7 +100,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       name: cleanName,
       ward: '',
       stake: '',
-      settings: { appointmentReminders: false, milestoneReminders: false },
+      settings: { appointmentReminders: false, phaseReminders: false },
     });
   };
 

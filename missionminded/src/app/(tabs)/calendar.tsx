@@ -6,7 +6,7 @@ import { AppText as Text } from '@/components/app-text';
 import { CheckRow } from '@/components/check-row';
 import { MissionaryPicker } from '@/components/missionary-picker';
 import { useMissionaries } from '@/data/missionaries';
-import { getNextMilestone, phaseInfo } from '@/data/repository';
+import { getNextMoment, getPhaseLabel } from '@/data/repository';
 import { colors, spacing } from '@/theme/colors';
 
 const weekdays = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
@@ -43,7 +43,7 @@ export default function CalendarScreen() {
   const [addText, setAddText] = useState('');
   const [saveError, setSaveError] = useState('');
 
-  const next = missionary ? getNextMilestone(missionary) : undefined;
+  const next = missionary ? getNextMoment(missionary) : undefined;
   const monthPrefix = toKey(month).slice(0, 7);
   const monthItems = (missionary?.calendar ?? [])
     .filter((item) => item.date.startsWith(monthPrefix))
@@ -82,7 +82,7 @@ export default function CalendarScreen() {
       <ScrollView style={styles.screen} contentContainerStyle={styles.scrollContent}>
         <View style={styles.content}>
           <Text style={styles.pageTitle}>Calendar</Text>
-          <Text style={styles.emptyText}>Link a missionary first to create appointments and view milestones.</Text>
+          <Text style={styles.emptyText}>Link a missionary first to create appointments and view phase moments.</Text>
           <Pressable accessibilityRole="button" onPress={() => router.push('/link-missionary')} style={styles.dashedButton}>
             <Text style={styles.dashedButtonText}>+ Link a missionary</Text>
           </Pressable>
@@ -97,17 +97,17 @@ export default function CalendarScreen() {
         <Text style={styles.pageTitle}>Calendar</Text>
         <MissionaryPicker />
 
-        <View style={styles.milestoneCard}>
-          <Text style={styles.eyebrowOnDark}>NEXT MILESTONE</Text>
+        <View style={styles.momentCard}>
+          <Text style={styles.eyebrowOnDark}>NEXT PHASE</Text>
           {next ? (
             <>
-              <Text style={styles.milestoneTitle}>{next.title}</Text>
-              <Text style={styles.milestoneDetail}>
-                {[next.when, `${phaseInfo[next.phase].label} phase`].filter(Boolean).join(' · ')}
+              <Text style={styles.momentTitle}>{getPhaseLabel(next.phase, missionary.phase)}</Text>
+              <Text style={styles.momentDetail}>
+                {[next.title, next.when].filter(Boolean).join(' · ')}
               </Text>
             </>
           ) : (
-            <Text style={styles.milestoneTitle}>Every milestone is done!</Text>
+            <Text style={styles.momentTitle}>All upcoming moments are complete.</Text>
           )}
         </View>
 
@@ -214,10 +214,10 @@ const styles = StyleSheet.create({
   scrollContent: { flexGrow: 1, paddingHorizontal: spacing.lg, paddingTop: spacing.xl, paddingBottom: spacing.xxl },
   content: { width: '100%', maxWidth: 480, alignSelf: 'center', gap: spacing.md },
   pageTitle: { color: colors.navy, fontSize: 27, fontWeight: '700' },
-  milestoneCard: { gap: spacing.xs, padding: spacing.lg, borderRadius: 16, backgroundColor: colors.navy },
+  momentCard: { gap: spacing.xs, padding: spacing.lg, borderRadius: 16, backgroundColor: colors.navy },
   eyebrowOnDark: { color: '#9FB6CC', fontSize: 12, fontWeight: '700', letterSpacing: 0.8 },
-  milestoneTitle: { color: colors.white, fontSize: 20, fontWeight: '700' },
-  milestoneDetail: { color: '#C9D8E6', fontSize: 14 },
+  momentTitle: { color: colors.white, fontSize: 20, fontWeight: '700' },
+  momentDetail: { color: '#C9D8E6', fontSize: 14 },
   card: { padding: spacing.md, borderWidth: 1, borderColor: '#D6DEE6', borderRadius: 16 },
   monthHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.sm },
   monthArrow: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },

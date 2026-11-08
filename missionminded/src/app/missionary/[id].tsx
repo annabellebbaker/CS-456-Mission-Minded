@@ -8,10 +8,11 @@ import { PhaseTracker } from '@/components/phase-tracker';
 import { useMissionaries } from '@/data/missionaries';
 import {
   getMissionBoundary,
+  getPhaseLabel,
   missionPhases,
   phaseInfo,
   type MissionaryDetails,
-  type Milestone,
+  type PhaseMoment,
   type MissionPhase,
 } from '@/data/repository';
 import { colors, spacing } from '@/theme/colors';
@@ -25,7 +26,7 @@ function PhaseCard({ missionary }: { missionary: MissionaryDetails }) {
   return (
     <View style={styles.phaseCard}>
       <Text style={styles.phaseEyebrow}>RIGHT NOW</Text>
-      <Text style={styles.phaseLabel}>{info.label}</Text>
+      <Text style={styles.phaseLabel}>{getPhaseLabel(missionary.phase, missionary.phase)}</Text>
       <Text style={styles.phaseSummary}>{info.summary}</Text>
       <Text style={styles.phaseSince}>{missionary.phaseSince}</Text>
       <View style={styles.phaseDivider} />
@@ -34,41 +35,41 @@ function PhaseCard({ missionary }: { missionary: MissionaryDetails }) {
   );
 }
 
-function MilestoneRow({ milestone }: { milestone: Milestone }) {
+function PhaseMomentRow({ moment }: { moment: PhaseMoment }) {
   return (
-    <View style={styles.milestoneRow}>
-      <View style={[styles.milestoneMark, milestone.done && styles.milestoneMarkDone]}>
-        {milestone.done && <Text style={styles.milestoneCheck}>✓</Text>}
+    <View style={styles.momentRow}>
+      <View style={[styles.momentMark, moment.done && styles.momentMarkDone]}>
+        {moment.done && <Text style={styles.momentCheck}>✓</Text>}
       </View>
-      <View style={styles.milestoneCopy}>
-        <Text style={[styles.milestoneTitle, milestone.done && styles.milestoneTitleDone]}>{milestone.title}</Text>
-        <Text style={styles.mutedText}>{milestone.description}</Text>
+      <View style={styles.momentCopy}>
+        <Text style={[styles.momentTitle, moment.done && styles.momentTitleDone]}>{moment.title}</Text>
+        <Text style={styles.mutedText}>{moment.description}</Text>
       </View>
-      {milestone.when && <Text style={styles.milestoneWhen}>{milestone.when}</Text>}
+      {moment.when && <Text style={styles.momentWhen}>{moment.when}</Text>}
     </View>
   );
 }
 
 /** Smaller moments, grouped under the phase they belong to. */
-function MilestoneList({ milestones, currentPhase }: { milestones: Milestone[]; currentPhase: MissionPhase }) {
+function PhaseMomentList({ moments, currentPhase }: { moments: PhaseMoment[]; currentPhase: MissionPhase }) {
   const groups = missionPhases
-    .map((phase) => ({ phase, items: milestones.filter((milestone) => milestone.phase === phase) }))
+    .map((phase) => ({ phase, items: moments.filter((moment) => moment.phase === phase) }))
     .filter((group) => group.items.length > 0);
 
   return (
-    <View style={styles.milestoneGroups}>
+    <View style={styles.momentGroups}>
       {groups.map(({ phase, items }) => (
-        <View key={phase} style={styles.milestoneGroup}>
-          <View style={styles.milestoneGroupHeading}>
-            <Text style={styles.milestoneGroupLabel}>{phaseInfo[phase].label}</Text>
+        <View key={phase} style={styles.momentGroup}>
+          <View style={styles.momentGroupHeading}>
+            <Text style={styles.momentGroupLabel}>{getPhaseLabel(phase, currentPhase)}</Text>
             {phase === currentPhase && (
               <View style={styles.nowPill}>
                 <Text style={styles.nowPillText}>Now</Text>
               </View>
             )}
           </View>
-          {items.map((milestone) => (
-            <MilestoneRow key={milestone.title} milestone={milestone} />
+          {items.map((moment) => (
+            <PhaseMomentRow key={moment.title} moment={moment} />
           ))}
         </View>
       ))}
@@ -142,7 +143,7 @@ export default function MissionaryScreen() {
 
         <View style={styles.sectionCard}>
           <Text style={styles.sectionEyebrow}>MOMENTS ALONG THE WAY</Text>
-          <MilestoneList milestones={missionary.milestones} currentPhase={missionary.phase} />
+          <PhaseMomentList moments={missionary.moments} currentPhase={missionary.phase} />
         </View>
 
         {missionary.phase === 'preparing' && (
@@ -310,13 +311,13 @@ const styles = StyleSheet.create({
   phaseSummary: { color: colors.white, fontSize: 15, lineHeight: 21 },
   phaseSince: { color: '#9FB6CC', fontSize: 13 },
   phaseDivider: { height: 1, marginVertical: spacing.md, backgroundColor: 'rgba(255,255,255,0.18)' },
-  milestoneGroups: { gap: spacing.lg },
-  milestoneGroup: { gap: spacing.sm },
-  milestoneGroupHeading: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  milestoneGroupLabel: { color: colors.navy, fontSize: 13, fontWeight: '700' },
+  momentGroups: { gap: spacing.lg },
+  momentGroup: { gap: spacing.sm },
+  momentGroupHeading: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  momentGroupLabel: { color: colors.navy, fontSize: 13, fontWeight: '700' },
   nowPill: { paddingHorizontal: spacing.sm, paddingVertical: 2, borderRadius: 10, backgroundColor: colors.lightBlue },
   nowPillText: { color: colors.white, fontSize: 11, fontWeight: '700' },
-  milestoneRow: {
+  momentRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
@@ -324,7 +325,7 @@ const styles = StyleSheet.create({
     borderRadius: 11,
     backgroundColor: '#F6F8FA',
   },
-  milestoneMark: {
+  momentMark: {
     width: 20,
     height: 20,
     alignItems: 'center',
@@ -333,12 +334,12 @@ const styles = StyleSheet.create({
     borderColor: '#AEB8C2',
     borderRadius: 10,
   },
-  milestoneMarkDone: { borderColor: colors.navy, backgroundColor: colors.navy },
-  milestoneCheck: { color: colors.white, fontSize: 12, lineHeight: 14, fontWeight: '700' },
-  milestoneCopy: { flex: 1, gap: 2 },
-  milestoneTitle: { color: colors.text, fontSize: 14, fontWeight: '600' },
-  milestoneTitleDone: { color: colors.navy },
-  milestoneWhen: { color: colors.textSecondary, fontSize: 12, fontWeight: '600' },
+  momentMarkDone: { borderColor: colors.navy, backgroundColor: colors.navy },
+  momentCheck: { color: colors.white, fontSize: 12, lineHeight: 14, fontWeight: '700' },
+  momentCopy: { flex: 1, gap: 2 },
+  momentTitle: { color: colors.text, fontSize: 14, fontWeight: '600' },
+  momentTitleDone: { color: colors.navy },
+  momentWhen: { color: colors.textSecondary, fontSize: 12, fontWeight: '600' },
   mutedText: { color: colors.textSecondary, fontSize: 13, lineHeight: 19 },
   cardTitle: { color: colors.navy, fontSize: 17, fontWeight: '700' },
   guessEntry: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
