@@ -60,13 +60,12 @@ MissionMinded aims to provide those supporting missionaries with resources and b
 What matters most on the screen for the missionary supporter:
 
 1. A simple home page with a daily scripture thought and a card for each linked missionary
-2. A five-stage journey tracker on each missionary card (Assigned, Called, MTC, Field, Home) with a plain-language status such as "Will be called" or "Serving in Wasilla", instead of a large countdown number
-   - The four phase labels map to internal IDs: preparing → Assigned, mtc → MTC, serving → Field, and home → Home. The existing called phase remains between Assigned and MTC. Tracker and phase-group labels use past tense before missionary.phase, present tense for the current phase, and future tense after it.
+2. A four-stage journey tracker on each missionary card (Assigned, MTC, Field, Home) with a plain-language status such as "Assigned" or "Serving in Wasilla", instead of a large countdown number
+   - The phase labels map to internal IDs: `assigned` → Assigned, `mtc` → MTC, `serving` → Field, and `home` → Home. Tracker and phase-group labels use past tense before `missionary.phase`, present tense for the current phase, and future tense after it. Stored `preparing` and `called` phase values are normalized to `assigned`.
 3. A missionary page with:
    - **Their journey**: phase moments grouped by phase (for example: mission call opened, receiving his endowment, farewell talk, enters the MTC, serving)
    - **Growing together this week**: study and prayer actions the supporter can check off
    - **To ponder as a family**: a scripture for family reflection
-   - **"Guess where this missionary is going on their mission?"** (pre-mission only)
    - **Mission details** (expandable): mission map, companion, area, mission leaders, and mission office with call and email
 4. A packing list dynamically pulled from mission details and mission-specific climate attire
 
@@ -85,7 +84,7 @@ What matters most on the screen for the missionary supporter:
 
 | Tab              | Contents                                                                                                                                                                                                                                              |
 | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Home**         | Greeting; thought for today; "Your missionaries" cards with status and journey stage tracker; link a missionary. Tapping a card opens that missionary's page (journey, growing together, ponder as a family, guess game, expandable mission details). |
+| **Home**         | Greeting; thought for today; "Your missionaries" cards with status and journey stage tracker; link a missionary. Tapping a card opens that missionary's page (journey, growing together, ponder as a family, expandable mission details). |
 | **Calendar**     | Missionary selector; **next phase** with a tense-aware phase label (replaces the countdown); month calendar; missionary to-dos and appointments; add appointment                                                                                                                 |
 | **Packing List** | Missionary selector; essentials for all missions; mission-specific items for the mission's climate; shopping marked "coming later"                                                                                                                    |
 | **Profile**      | Supporter name and ward/stake; "Missionaries I support" with the supporter's relationship to each; link a missionary; settings toggles                                                                                                                |
@@ -140,10 +139,10 @@ Fields: missionary name, your relationship (for example Mom, Sister, Friend), mi
 
 - **Fidelity level:** Functional, clickable prototype with prototyping ability and flow
 - **Frame:** iPhone-shaped frame, usable on screen
-- **Functionality:** Four tabs with working interactions (checklists, expandable details, guess game, add appointment, link a missionary, settings toggles)
+- **Functionality:** Four tabs with working interactions (checklists, expandable details, add appointment, link a missionary, settings toggles)
 - **Color:** Navy, light blue, and white, taken from the paper prototype
 - **Flow (wireframe v2):** Loading screen with scripture, then Home, then a missionary page. Login and account creation were in the paper prototype but are not shown in wireframe v2. See Open Decisions below for how Phase 1 handles them.
-- **Sample data:** Elder Jacob Thompson-Whitaker (Peru Lima North Mission, preparing, brother), Elder David Kim (MTC), Sister Ana Taylor (Alaska Anchorage Mission, serving, cousin), and Sister Claire Miller (home)
+- **Sample data:** Elder Jacob Thompson-Whitaker (Peru Lima North Mission, assigned, brother), Elder David Kim (MTC), Sister Ana Taylor (Alaska Anchorage Mission, serving, cousin), and Sister Claire Miller (home)
 
 ---
 
@@ -255,11 +254,11 @@ CS-456-Mission-Minded/                 (Git repo root)
 | `src/app/(tabs)/calendar.tsx`                    | Calendar                                                                                                |
 | `src/app/(tabs)/packing.tsx`                     | Packing list                                                                                            |
 | `src/app/(tabs)/profile.tsx`                     | Profile                                                                                                 |
-| `src/app/missionary/[id].tsx`                    | Missionary page (journey, growing together, ponder as a family, guess game, expandable mission details) |
+| `src/app/missionary/[id].tsx`                    | Missionary page (journey, growing together, ponder as a family, expandable mission details) |
 | `src/app/link-missionary.tsx`                    | Link a Missionary form                                                                                  |
 | `src/app/(auth)/login.tsx`, `create-account.tsx` | Mock login and account screens (see Open Decisions)                                                     |
 
-**Shared pieces to create:** loading screen with a scripture or quote between page transitions, journey stage tracker (Called, Preparing, MTC, Serving, Home), missionary card, checklist item, expandable section, and a theme file.
+**Shared pieces to create:** loading screen with a scripture or quote between page transitions, journey phase tracker (Assigned, MTC, Field, Home), missionary card, checklist item, expandable section, and a theme file.
 
 **Theme:** Navy, light blue, and white from the paper prototype. Take exact values from `docs/Paper_prototypes.pdf` and the CSS in `docs/MissionMinded_Wireframe_2.html`, and put them in `src/theme/`.
 
@@ -268,7 +267,7 @@ CS-456-Mission-Minded/                 (Git repo root)
 **Phase 1 is done when**
 
 - All four tabs, the missionary page, and the Link a Missionary form work.
-- Checklists, appointments, the guess game, expandable details, and settings toggles respond to taps.
+- Checklists, appointments, the expandable details, and settings toggles respond to taps.
 - The scripture loading screen shows between pages.
 - The app runs in the browser with no console errors from missing native modules.
 - Nothing in the Not-in-scope list has been built.
@@ -280,7 +279,7 @@ CS-456-Mission-Minded/                 (Git repo root)
 - Proposed Firestore structure:
   - `users/{userId}`: name, ward and stake, settings toggles
   - `users/{userId}/missionaries/{missionaryId}`: name, relationship, mission name, MTC report date, mission length, optional details
-  - Under each missionary: `todos`, `packingChecks`, `growingTogether`, `guesses`
+  - Under each missionary: `todos`, `packingChecks`, `growingTogether`
   - `missions/{missionId}`: shared packing items by climate (read-only for users)
 - Security rules (already published): each signed-in user can read and write only `users/{their uid}/**`. `missions/**` is read-only for signed-in users.
 - Sharing one missionary between family members is **not** supported by these rules. See Open Decisions.
