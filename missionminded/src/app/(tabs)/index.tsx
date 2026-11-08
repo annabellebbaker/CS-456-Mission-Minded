@@ -19,7 +19,7 @@ function MissionaryCard({ missionary }: { missionary: MissionaryDetails }) {
         <View style={styles.missionaryCopy}>
           <Text style={styles.missionaryName}>{missionary.name}</Text>
           <Text style={styles.missionName}>
-            {missionary.phase === 'preparing' ? 'Mission call on its way' : missionary.missionName}
+            {missionary.missionName}
           </Text>
         </View>
         <Text accessibilityElementsHidden style={styles.cardArrow}>›</Text>

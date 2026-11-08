@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, router, useLocalSearchParams } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
-import { AppText as Text, AppTextInput as TextInput } from '@/components/app-text';
+import { AppText as Text } from '@/components/app-text';
 import { MissionMap } from '@/components/mission-map';
 import { PhaseTracker } from '@/components/phase-tracker';
 import { useMissionaries } from '@/data/missionaries';
@@ -91,9 +91,6 @@ export default function MissionaryScreen() {
   const { getById } = useMissionaries();
   const missionary = getById(Array.isArray(id) ? id[0] : id);
   const [detailsExpanded, setDetailsExpanded] = useState(false);
-  const [guesses, setGuesses] = useState(() => missionary?.guesses ?? []);
-  const [guessText, setGuessText] = useState('');
-  const [callRevealed, setCallRevealed] = useState(false);
 
   if (!missionary) {
     return (
@@ -104,18 +101,8 @@ export default function MissionaryScreen() {
     );
   }
 
-  const addGuess = () => {
-    const trimmedGuess = guessText.trim();
-    if (!trimmedGuess) return;
-
-    setGuesses((current) => [...current, { text: trimmedGuess, who: 'You' }]);
-    setGuessText('');
-  };
-
   const details = missionary.missionDetails;
   const boundary = getMissionBoundary(missionary.missionId);
-  // Before the call is opened, keep the mission a surprise for the guess game.
-  const callHidden = missionary.phase === 'preparing' && !callRevealed;
 
   return (
     <ScrollView
@@ -132,7 +119,7 @@ export default function MissionaryScreen() {
 
         <View style={styles.missionaryHeader}>
           <Text style={styles.pageTitle}>{missionary.name}</Text>
-          <Text style={styles.missionName}>{callHidden ? 'Mission call on its way' : missionary.missionName}</Text>
+          <Text style={styles.missionName}>{missionary.missionName}</Text>
           <View style={styles.statusPill}>
             <View style={styles.statusDot} />
             <Text style={styles.statusText}>{missionary.status}</Text>
@@ -146,55 +133,6 @@ export default function MissionaryScreen() {
           <PhaseMomentList moments={missionary.moments} currentPhase={missionary.phase} />
         </View>
 
-        {missionary.phase === 'preparing' && (
-          <View style={styles.sectionCard}>
-            <Text style={styles.cardTitle}>Where is {missionary.firstName} going?</Text>
-            <Text style={styles.mutedText}>Family and friends can add guesses before the call is opened.</Text>
-            <View style={styles.guessEntry}>
-              <TextInput
-                accessibilityLabel="Your mission guess"
-                value={guessText}
-                onChangeText={setGuessText}
-                onSubmitEditing={addGuess}
-                placeholder="Country, city or mission"
-                placeholderTextColor="#6F7C88"
-                returnKeyType="done"
-                style={styles.textInput}
-              />
-              <Pressable
-                accessibilityRole="button"
-                onPress={addGuess}
-                style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}>
-                <Text style={styles.primaryButtonText}>Add</Text>
-              </Pressable>
-            </View>
-            {guesses.length > 0 && (
-              <View style={styles.guessList}>
-                {guesses.map((guess, index) => (
-                  <View key={`${guess.who}-${guess.text}-${index}`} style={styles.guessRow}>
-                    <Text style={styles.guessText}>{guess.text}</Text>
-                    <Text style={styles.mutedText}>{guess.who}</Text>
-                  </View>
-                ))}
-              </View>
-            )}
-            {!callRevealed ? (
-              <Pressable
-                accessibilityRole="button"
-                onPress={() => setCallRevealed(true)}
-                style={({ pressed }) => [styles.revealButton, pressed && styles.pressed]}>
-                <Text style={styles.revealButtonText}>Reveal the call</Text>
-              </Pressable>
-            ) : (
-              <View style={styles.revealCard}>
-                <Text style={styles.sectionEyebrow}>CALLED TO SERVE IN THE</Text>
-                <Text style={styles.revealedMission}>{missionary.missionName}</Text>
-                <Text style={styles.mutedText}>{missionary.language}</Text>
-              </View>
-            )}
-          </View>
-        )}
-
         <Pressable
           accessibilityRole="button"
           accessibilityState={{ expanded: detailsExpanded }}
@@ -206,13 +144,11 @@ export default function MissionaryScreen() {
 
         {detailsExpanded && (
           <View style={styles.detailsContent}>
-            {boundary && !callHidden ? (
+            {boundary ? (
               <MissionMap boundary={boundary} />
             ) : (
               <View style={styles.mapPlaceholder}>
-                <Text style={styles.mutedText}>
-                  {callHidden ? 'The map appears once the call is opened.' : 'Map coming soon for this mission.'}
-                </Text>
+                <Text style={styles.mutedText}>Map coming soon for this mission.</Text>
               </View>
             )}
             <View style={styles.detailGrid}>
@@ -341,52 +277,6 @@ const styles = StyleSheet.create({
   momentTitleDone: { color: colors.navy },
   momentWhen: { color: colors.textSecondary, fontSize: 12, fontWeight: '600' },
   mutedText: { color: colors.textSecondary, fontSize: 13, lineHeight: 19 },
-  cardTitle: { color: colors.navy, fontSize: 17, fontWeight: '700' },
-  guessEntry: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  textInput: {
-    flex: 1,
-    minHeight: 46,
-    paddingHorizontal: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 9,
-    color: colors.text,
-    fontSize: 14,
-    backgroundColor: colors.white,
-  },
-  primaryButton: {
-    minHeight: 46,
-    minWidth: 62,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: spacing.md,
-    borderRadius: 9,
-    backgroundColor: colors.navy,
-  },
-  primaryButtonText: { color: colors.white, fontSize: 14, fontWeight: '700' },
-  guessList: { paddingHorizontal: spacing.md, borderWidth: 1, borderColor: '#D6DEE6', borderRadius: 11 },
-  guessRow: {
-    minHeight: 44,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E7EBEF',
-  },
-  guessText: { color: colors.text, fontSize: 14 },
-  revealButton: {
-    minHeight: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1.5,
-    borderColor: colors.navy,
-    borderRadius: 10,
-    backgroundColor: '#F0F6FB',
-  },
-  revealButtonText: { color: colors.navy, fontSize: 15, fontWeight: '700' },
-  revealCard: { alignItems: 'center', gap: spacing.sm, padding: spacing.md, borderWidth: 2, borderColor: colors.navy, borderRadius: 12 },
-  revealedMission: { color: colors.navy, fontSize: 19, fontWeight: '700', textAlign: 'center' },
   detailsToggle: {
     minHeight: 54,
     flexDirection: 'row',

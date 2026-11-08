@@ -5,7 +5,7 @@ import { colors } from '@/theme/colors';
 
 /** The five mission phases as dots, with the current one highlighted. `onDark` is for navy backgrounds. */
 export function PhaseTracker({ phase, onDark = false }: { phase: MissionPhase; onDark?: boolean }) {
-  const currentPhase = missionPhases.includes(phase) ? phase : 'preparing';
+  const currentPhase = missionPhases.includes(phase) ? phase : 'assigned';
   const activeIndex = missionPhases.indexOf(currentPhase);
 
   return (

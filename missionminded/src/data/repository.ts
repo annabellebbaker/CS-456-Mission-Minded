@@ -51,7 +51,6 @@ export type MissionaryDetails = {
   growingTogether: GrowingTogetherItem[];
   ponderText: string;
   ponderReference: string;
-  guesses: { text: string; who: string }[];
   calendar: CalendarItem[];
   climate: { label: string; items: string[] } | null;
   missionDetails: {
@@ -85,14 +84,14 @@ const missionaries: MissionaryRecord[] = [
     relationship: 'Brother',
     missionId: 'peru-lima-north',
     missionName: 'Peru Lima North Mission',
-    phase: 'preparing',
+    phase: 'assigned',
     phaseSince: 'Since September',
     language: 'Spanish-speaking',
     moments: [
-      { title: 'Papers submitted', description: 'The first step is done', phase: 'preparing', when: 'September', done: true },
-      { title: 'Mission call arrives', description: 'A day the family will remember', phase: 'preparing', when: 'Any day now', done: false },
-      { title: 'Receiving his endowment', description: 'At the temple', phase: 'called', done: false },
-      { title: 'Farewell talk', description: 'Sharing his testimony with the ward', phase: 'called', done: false },
+      { title: 'Papers submitted', description: 'The first step is done', phase: 'assigned', when: 'September', done: true },
+      { title: 'Mission call received', description: 'A day the family will remember', phase: 'assigned', when: 'September', done: true },
+      { title: 'Receiving his endowment', description: 'At the temple', phase: 'assigned', done: false },
+      { title: 'Farewell talk', description: 'Sharing his testimony with the ward', phase: 'assigned', done: false },
       { title: 'Enters the MTC', description: 'Learning Spanish and how to teach', phase: 'mtc', when: 'This January', done: false },
       { title: 'First area', description: 'Learning to love the people', phase: 'serving', done: false },
     ],
@@ -103,14 +102,8 @@ const missionaries: MissionaryRecord[] = [
     ],
     ponderText: 'Wherefore, if ye have desires to serve God ye are called to the work.',
     ponderReference: 'Doctrine and Covenants 4:3',
-    guesses: [
-      { text: 'Brazil', who: 'Grandma' },
-      { text: 'Japan', who: 'Ben' },
-      { text: 'Somewhere cold!', who: 'Mom' },
-    ],
     calendar: [
       { id: 'jacob-1', title: 'Temple preparation class', date: '2026-11-04' },
-      { id: 'jacob-2', title: 'Plan the call-opening night', date: '2026-11-08' },
       { id: 'jacob-3', title: 'Passport photos', date: '2026-11-14' },
       { id: 'jacob-4', title: 'Dinner with the bishop', date: '2026-11-22' },
     ],
@@ -145,7 +138,6 @@ const missionaries: MissionaryRecord[] = [
     ],
     ponderText: 'Ye are the light of the world. A city that is set on an hill cannot be hid.',
     ponderReference: 'Matthew 5:14',
-    guesses: [],
     calendar: [
       { id: 'ana-1', title: 'Write back on P-day', date: '2026-11-02' },
       { id: 'ana-2', title: 'Write back on P-day', date: '2026-11-09' },
@@ -177,7 +169,6 @@ const missionaries: MissionaryRecord[] = [
     growingTogether: [{ id: 'pray-for-david', title: 'Pray for David', description: 'And for the people he will serve' }],
     ponderText: 'I will go before your face. I will be on your right hand and on your left.',
     ponderReference: 'Doctrine and Covenants 84:88',
-    guesses: [],
     calendar: [],
     climate: null,
     missionDetails: { companion: null, area: null, leaders: null, office: null, phone: null, email: null },
@@ -200,7 +191,6 @@ const missionaries: MissionaryRecord[] = [
     growingTogether: [{ id: 'pray-for-claire', title: 'Pray with Claire', description: 'As she finds ways to keep serving' }],
     ponderText: 'By small and simple things are great things brought to pass.',
     ponderReference: 'Alma 37:6',
-    guesses: [],
     calendar: [],
     climate: null,
     missionDetails: { companion: null, area: null, leaders: null, office: null, phone: null, email: null },
@@ -209,9 +199,7 @@ const missionaries: MissionaryRecord[] = [
 
 function describeStatus({ phase, missionDetails }: MissionaryRecord) {
   switch (phase) {
-    case 'preparing':
-      return 'Waiting for the call';
-    case 'called':
+    case 'assigned':
       return 'Preparing to serve';
     case 'mtc':
       return 'At the MTC';
@@ -233,7 +221,6 @@ export function getSampleMissionaries(): MissionaryDetails[] {
       ...missionary,
       moments: [...missionary.moments],
       growingTogether: [...missionary.growingTogether],
-      guesses: [...missionary.guesses],
       calendar: [...missionary.calendar],
       missionDetails: { ...missionary.missionDetails },
     }),
@@ -264,8 +251,8 @@ export function buildLinkedMissionary(form: LinkMissionaryForm, today = new Date
   const mtcWhen = form.mtcDate?.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
 
   // Without a mission name the call hasn't come. After the MTC date, they're out serving.
-  let phase: MissionPhase = 'preparing';
-  if (form.missionName.trim()) phase = form.mtcDate && form.mtcDate <= today ? 'serving' : 'called';
+  let phase: MissionPhase = 'assigned';
+  if (form.missionName.trim() && form.mtcDate && form.mtcDate <= today) phase = 'serving';
 
   return withStatus({
     id: `linked-${Date.now()}`,
@@ -288,7 +275,6 @@ export function buildLinkedMissionary(form: LinkMissionaryForm, today = new Date
     growingTogether: [{ id: 'pray', title: `Pray for ${firstName} as a family`, description: 'And for the people they serve' }],
     ponderText: 'By small and simple things are great things brought to pass.',
     ponderReference: 'Alma 37:6',
-    guesses: [],
     calendar: [],
     climate: null,
     missionDetails: { companion: null, area: null, leaders: null, office: null, phone: null, email: null },

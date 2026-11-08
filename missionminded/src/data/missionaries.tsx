@@ -64,14 +64,21 @@ function normalizePhase(value: unknown, currentStage: unknown): MissionPhase {
   if (isMissionPhase(value)) return value;
   const stage = asString(currentStage).trim().toLowerCase();
   const stagePhases: Record<string, MissionPhase> = {
-    preparing: 'preparing',
-    'pre-mission': 'preparing',
-    called: 'called',
+    assigned: 'assigned',
+    preparing: 'assigned',
+    'pre-mission': 'assigned',
+    called: 'assigned',
     mtc: 'mtc',
     serving: 'serving',
     home: 'home',
   };
-  return stagePhases[stage] ?? 'preparing';
+  return stagePhases[stage] ?? 'assigned';
+}
+
+function normalizeMomentPhase(value: unknown, fallback: MissionPhase): MissionPhase {
+  if (isMissionPhase(value)) return value;
+  if (value === 'preparing' || value === 'pre-mission' || value === 'called') return 'assigned';
+  return fallback;
 }
 
 function normalizeMoments(value: unknown, legacyJourney: unknown, legacyMoments: unknown, phase: MissionPhase): PhaseMoment[] {
@@ -90,7 +97,7 @@ function normalizeMoments(value: unknown, legacyJourney: unknown, legacyMoments:
     return [{
       title,
       description: asString(item.description),
-      phase: isMissionPhase(item.phase) ? item.phase : phase,
+      phase: normalizeMomentPhase(item.phase, phase),
       ...(when ? { when } : {}),
       done: item.done === true || item.state === 'complete',
     }];
@@ -128,15 +135,6 @@ function normalizeMissionary(id: string, value: unknown): MissionaryDetails {
       return title && date ? [{ id: asString(item.id, `${id}-calendar-${index}`), title, date } satisfies CalendarItem] : [];
     })
     : [];
-  const guesses = Array.isArray(raw.guesses)
-    ? raw.guesses.flatMap((entry) => {
-      const guess = asRecord(entry);
-      return typeof guess.text === 'string'
-        ? [{ text: guess.text, who: asString(guess.who) }]
-        : [];
-    })
-    : [];
-
   return {
     id,
     name,
@@ -154,7 +152,6 @@ function normalizeMissionary(id: string, value: unknown): MissionaryDetails {
     growingTogether,
     ponderText: asString(raw.ponderText),
     ponderReference: asString(raw.ponderReference),
-    guesses,
     calendar,
     climate,
     missionDetails: {
@@ -190,8 +187,14 @@ export function MissionariesProvider({ children }: { children: ReactNode }) {
 
     // Preview mode (dev only): sample missionaries kept in memory, nothing touches Firebase.
     if (user.id === PREVIEW_USER_ID) {
-      setData({ userId: user.id, missionaries: getSampleMissionaries(), checked: {} });
-      return;
+      let active = true;
+      const previewData = { userId: user.id, missionaries: getSampleMissionaries(), checked: {} };
+      queueMicrotask(() => {
+        if (active) setData(previewData);
+      });
+      return () => {
+        active = false;
+      };
     }
 
     const db = getFirebaseFirestore();

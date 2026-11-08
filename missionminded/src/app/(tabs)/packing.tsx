@@ -38,7 +38,7 @@ function PackingSection({ title, items, missionaryId }: { title: string; items: 
 export default function PackingScreen() {
   const { missionaries, getById, selectedId } = useMissionaries();
   const missionary = getById(selectedId) ?? missionaries[0];
-  const missionKnown = missionary?.phase !== 'preparing';
+  const missionKnown = missionary?.missionName !== 'Mission not yet known';
 
   if (!missionary) {
     return (
@@ -60,7 +60,7 @@ export default function PackingScreen() {
         <Text style={styles.pageTitle}>Packing list</Text>
         <MissionaryPicker />
         <Text style={styles.caption}>
-          {missionKnown ? `Built from ${missionary.missionName} details` : 'Climate items appear once the call arrives'}
+          {missionKnown ? `Built from ${missionary.missionName} details` : 'Mission-specific items show when mission details are available'}
         </Text>
 
         <PackingSection title="ESSENTIALS — ALL MISSIONS" items={packingEssentials} missionaryId={missionary.id} />
@@ -76,7 +76,7 @@ export default function PackingScreen() {
             <Text style={styles.noticeText}>
               {missionKnown
                 ? "Climate details for this mission aren't added yet."
-                : `Mission-specific items will show here after ${missionary.firstName}'s call is opened.`}
+                : `Mission-specific items will show here when ${missionary.firstName}'s mission details are available.`}
             </Text>
           </View>
         )}
