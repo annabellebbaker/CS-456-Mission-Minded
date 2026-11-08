@@ -28,7 +28,7 @@
       "package": "com.anonymous.missionminded"
     },
     "web": {
-      "output": "server",
+      "output": "single",
       "favicon": "./assets/images/brand/favicon.png"
     },
     "plugins": [
@@ -43,6 +43,7 @@
       ]
     ],
     "experiments": {
+      "baseUrl": "/CS-456-Mission-Minded",
       "typedRoutes": true,
       "reactCompiler": true
     }
