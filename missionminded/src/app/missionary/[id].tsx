@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, router, useLocalSearchParams } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
-import { AppText as Text } from '@/components/app-text';
+import { AppText as Text, AppTextInput as TextInput } from '@/components/app-text';
 import { MissionMap } from '@/components/mission-map';
 import { PhaseTracker } from '@/components/phase-tracker';
 import { useMissionaries } from '@/data/missionaries';
@@ -35,23 +35,97 @@ function PhaseCard({ missionary }: { missionary: MissionaryDetails }) {
   );
 }
 
-function PhaseMomentRow({ moment }: { moment: PhaseMoment }) {
+function PhaseMomentRow({
+  moment,
+  onSaveDate,
+}: {
+  moment: PhaseMoment;
+  onSaveDate: (date: string) => Promise<void>;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [date, setDate] = useState(moment.when ?? '');
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
+
+  const saveDate = async () => {
+    setSaving(true);
+    setSaveError('');
+    try {
+      await onSaveDate(date);
+      setEditing(false);
+    } catch {
+      setSaveError('Could not save this date. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
-    <View style={styles.momentRow}>
-      <View style={[styles.momentMark, moment.done && styles.momentMarkDone]}>
-        {moment.done && <Text style={styles.momentCheck}>✓</Text>}
-      </View>
-      <View style={styles.momentCopy}>
-        <Text style={[styles.momentTitle, moment.done && styles.momentTitleDone]}>{moment.title}</Text>
-        <Text style={styles.mutedText}>{moment.description}</Text>
-      </View>
-      {moment.when && <Text style={styles.momentWhen}>{moment.when}</Text>}
+    <View style={styles.momentItem}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`Edit date for ${moment.title}`}
+        accessibilityState={{ expanded: editing }}
+        onPress={() => {
+          setDate(moment.when ?? '');
+          setSaveError('');
+          setEditing((current) => !current);
+        }}
+        style={({ pressed }) => [styles.momentRow, pressed && styles.pressed]}>
+        <View style={[styles.momentMark, moment.done && styles.momentMarkDone]}>
+          {moment.done && <Text style={styles.momentCheck}>✓</Text>}
+        </View>
+        <View style={styles.momentCopy}>
+          <Text style={[styles.momentTitle, moment.done && styles.momentTitleDone]}>{moment.title}</Text>
+          <Text style={styles.momentWhen}>{moment.when || 'Add date'}</Text>
+        </View>
+        <Text style={styles.momentEditIcon}>{editing ? '−' : '+'}</Text>
+      </Pressable>
+      {editing && (
+        <View style={styles.momentEditor}>
+          <TextInput
+            accessibilityLabel={`Date for ${moment.title}`}
+            value={date}
+            onChangeText={setDate}
+            onSubmitEditing={() => void saveDate()}
+            placeholder="e.g. January 15, 2027"
+            placeholderTextColor="#6F7C88"
+            returnKeyType="done"
+            style={styles.momentDateInput}
+          />
+          <View style={styles.momentEditorActions}>
+            <Pressable
+              accessibilityRole="button"
+              disabled={saving}
+              onPress={() => void saveDate()}
+              style={({ pressed }) => [styles.momentSaveButton, pressed && styles.pressed, saving && styles.disabledButton]}>
+              <Text style={styles.momentSaveText}>{saving ? 'Saving…' : 'Save date'}</Text>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              disabled={saving}
+              onPress={() => setEditing(false)}
+              style={({ pressed }) => [styles.momentCancelButton, pressed && styles.pressed, saving && styles.disabledButton]}>
+              <Text style={styles.momentCancelText}>Cancel</Text>
+            </Pressable>
+          </View>
+          {!!saveError && <Text accessibilityRole="alert" style={styles.momentSaveError}>{saveError}</Text>}
+        </View>
+      )}
     </View>
   );
 }
 
 /** Smaller moments, grouped under the phase they belong to. */
-function PhaseMomentList({ moments, currentPhase }: { moments: PhaseMoment[]; currentPhase: MissionPhase }) {
+function PhaseMomentList({
+  moments,
+  currentPhase,
+  onSaveDate,
+}: {
+  moments: PhaseMoment[];
+  currentPhase: MissionPhase;
+  onSaveDate: (moment: PhaseMoment, date: string) => Promise<void>;
+}) {
   const groups = missionPhases
     .map((phase) => ({ phase, items: moments.filter((moment) => moment.phase === phase) }))
     .filter((group) => group.items.length > 0);
@@ -69,7 +143,11 @@ function PhaseMomentList({ moments, currentPhase }: { moments: PhaseMoment[]; cu
             )}
           </View>
           {items.map((moment) => (
-            <PhaseMomentRow key={moment.title} moment={moment} />
+            <PhaseMomentRow
+              key={`${phase}:${moment.title}`}
+              moment={moment}
+              onSaveDate={(date) => onSaveDate(moment, date)}
+            />
           ))}
         </View>
       ))}
@@ -88,7 +166,7 @@ function DetailValue({ label, value }: { label: string; value: string | null }) 
 
 export default function MissionaryScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { getById } = useMissionaries();
+  const { getById, updatePhaseMomentDate } = useMissionaries();
   const missionary = getById(Array.isArray(id) ? id[0] : id);
   const [detailsExpanded, setDetailsExpanded] = useState(false);
 
@@ -130,7 +208,11 @@ export default function MissionaryScreen() {
 
         <View style={styles.sectionCard}>
           <Text style={styles.sectionEyebrow}>MOMENTS ALONG THE WAY</Text>
-          <PhaseMomentList moments={missionary.moments} currentPhase={missionary.phase} />
+          <PhaseMomentList
+            moments={missionary.moments}
+            currentPhase={missionary.phase}
+            onSaveDate={(moment, date) => updatePhaseMomentDate(missionary.id, moment.phase, moment.title, date)}
+          />
         </View>
 
         <Pressable
@@ -249,6 +331,7 @@ const styles = StyleSheet.create({
   phaseDivider: { height: 1, marginVertical: spacing.md, backgroundColor: 'rgba(255,255,255,0.18)' },
   momentGroups: { gap: spacing.lg },
   momentGroup: { gap: spacing.sm },
+  momentItem: { gap: spacing.xs },
   momentGroupHeading: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   momentGroupLabel: { color: colors.navy, fontSize: 13, fontWeight: '700' },
   nowPill: { paddingHorizontal: spacing.sm, paddingVertical: 2, borderRadius: 10, backgroundColor: colors.lightBlue },
@@ -276,6 +359,25 @@ const styles = StyleSheet.create({
   momentTitle: { color: colors.text, fontSize: 14, fontWeight: '600' },
   momentTitleDone: { color: colors.navy },
   momentWhen: { color: colors.textSecondary, fontSize: 12, fontWeight: '600' },
+  momentEditIcon: { color: colors.textSecondary, fontSize: 20, lineHeight: 22 },
+  momentEditor: { gap: spacing.sm, padding: spacing.md, borderWidth: 1, borderColor: '#D6DEE6', borderRadius: 10 },
+  momentDateInput: {
+    minHeight: 44,
+    paddingHorizontal: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 9,
+    color: colors.text,
+    fontSize: 14,
+    backgroundColor: colors.white,
+  },
+  momentEditorActions: { flexDirection: 'row', gap: spacing.sm },
+  momentSaveButton: { flex: 1, minHeight: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 9, backgroundColor: colors.navy },
+  momentSaveText: { color: colors.white, fontSize: 14, fontWeight: '700' },
+  momentCancelButton: { minHeight: 44, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.md, borderWidth: 1, borderColor: colors.border, borderRadius: 9 },
+  momentCancelText: { color: colors.navy, fontSize: 14, fontWeight: '600' },
+  momentSaveError: { color: '#A12626', fontSize: 13 },
+  disabledButton: { opacity: 0.6 },
   mutedText: { color: colors.textSecondary, fontSize: 13, lineHeight: 19 },
   detailsToggle: {
     minHeight: 54,

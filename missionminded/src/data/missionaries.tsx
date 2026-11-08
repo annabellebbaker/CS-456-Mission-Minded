@@ -21,6 +21,7 @@ type MissionariesContextValue = {
   getById: (id: string) => MissionaryDetails | undefined;
   linkMissionary: (form: LinkMissionaryForm) => Promise<MissionaryDetails>;
   addCalendarItem: (missionaryId: string, title: string, date: string) => Promise<void>;
+  updatePhaseMomentDate: (missionaryId: string, phase: MissionPhase, title: string, date: string) => Promise<void>;
   checked: Record<string, boolean>;
   toggleChecked: (key: string) => void;
   selectedId: string;
@@ -96,7 +97,6 @@ function normalizeMoments(value: unknown, legacyJourney: unknown, legacyMoments:
     const when = asString(item.when, asString(item.date));
     return [{
       title,
-      description: asString(item.description),
       phase: normalizeMomentPhase(item.phase, phase),
       ...(when ? { when } : {}),
       done: item.done === true || item.state === 'complete',
@@ -259,6 +259,35 @@ export function MissionariesProvider({ children }: { children: ReactNode }) {
     await updateDoc(reference, { calendar: arrayUnion(item) });
   }, [user]);
 
+  const updatePhaseMomentDate = useCallback(async (missionaryId: string, phase: MissionPhase, title: string, date: string) => {
+    if (!user) throw new Error('Sign in to update a phase moment.');
+    const current = missionaries.find((missionary) => missionary.id === missionaryId);
+    if (!current) throw new Error('Missionary not found.');
+    const trimmedDate = date.trim();
+    const moments = current.moments.map((moment) => {
+      if (moment.phase !== phase || moment.title !== title) return moment;
+      return trimmedDate
+        ? { ...moment, when: trimmedDate }
+        : { title: moment.title, phase: moment.phase, done: moment.done };
+    });
+
+    if (user.id !== PREVIEW_USER_ID) {
+      await updateDoc(
+        doc(getFirebaseFirestore(), 'users', user.id, 'missionaries', missionaryId),
+        { moments },
+      );
+    }
+
+    setData((currentData) => currentData.userId === user.id
+      ? {
+        ...currentData,
+        missionaries: currentData.missionaries.map((missionary) => missionary.id === missionaryId
+          ? { ...missionary, moments }
+          : missionary),
+      }
+      : currentData);
+  }, [missionaries, user]);
+
   const toggleChecked = useCallback((key: string) => {
     if (!user) return;
     const nextChecked = { ...checked, [key]: !checked[key] };
@@ -278,6 +307,7 @@ export function MissionariesProvider({ children }: { children: ReactNode }) {
     getById: (id) => missionaries.find((missionary) => missionary.id === id),
     linkMissionary,
     addCalendarItem,
+    updatePhaseMomentDate,
     checked,
     toggleChecked,
     selectedId,

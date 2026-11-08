@@ -8,7 +8,6 @@ export type { MissionPhase } from '@/data/phase-labels';
 /** A smaller moment that happens within a phase, like a farewell talk or a transfer. */
 export type PhaseMoment = {
   title: string;
-  description: string;
   phase: MissionPhase;
   /** Plain-language timing, like "This January". */
   when?: string;
@@ -88,12 +87,12 @@ const missionaries: MissionaryRecord[] = [
     phaseSince: 'Since September',
     language: 'Spanish-speaking',
     moments: [
-      { title: 'Papers submitted', description: 'The first step is done', phase: 'assigned', when: 'September', done: true },
-      { title: 'Mission call received', description: 'A day the family will remember', phase: 'assigned', when: 'September', done: true },
-      { title: 'Receiving his endowment', description: 'At the temple', phase: 'assigned', done: false },
-      { title: 'Farewell talk', description: 'Sharing his testimony with the ward', phase: 'assigned', done: false },
-      { title: 'Enters the MTC', description: 'Learning Spanish and how to teach', phase: 'mtc', when: 'This January', done: false },
-      { title: 'First area', description: 'Learning to love the people', phase: 'serving', done: false },
+      { title: 'Papers submitted', phase: 'assigned', when: 'September', done: true },
+      { title: 'Mission call received', phase: 'assigned', when: 'September', done: true },
+      { title: 'Receiving his endowment', phase: 'assigned', done: false },
+      { title: 'Farewell talk', phase: 'assigned', done: false },
+      { title: 'Enters the MTC', phase: 'mtc', when: 'This January', done: false },
+      { title: 'First area', phase: 'serving', done: false },
     ],
     growingTogetherIntro: 'Jacob is preparing in Preach My Gospel. Study alongside him:',
     growingTogether: [
@@ -125,11 +124,11 @@ const missionaries: MissionaryRecord[] = [
     phaseSince: 'Since May 2026',
     language: 'English-speaking',
     moments: [
-      { title: 'Entered the MTC', description: 'Three weeks in Provo', phase: 'mtc', when: 'Spring 2026', done: true },
-      { title: 'First area: Eagle River', description: 'Where she first felt at home', phase: 'serving', when: 'May 2026', done: true },
-      { title: 'Transferred to Wasilla', description: 'A new area and new people to love', phase: 'serving', when: 'September 2026', done: true },
-      { title: 'Halfway point', description: 'A time to reflect on her growth', phase: 'serving', when: 'Winter 2027', done: false },
-      { title: 'Returning home', description: 'Welcome her at the airport', phase: 'home', when: 'Fall 2027', done: false },
+      { title: 'Entered the MTC', phase: 'mtc', when: 'Spring 2026', done: true },
+      { title: 'First area: Eagle River', phase: 'serving', when: 'May 2026', done: true },
+      { title: 'Transferred to Wasilla', phase: 'serving', when: 'September 2026', done: true },
+      { title: 'Halfway point', phase: 'serving', when: 'Winter 2027', done: false },
+      { title: 'Returning home', phase: 'home', when: 'Fall 2027', done: false },
     ],
     growingTogetherIntro: 'Ana wrote that she is studying faith in Jesus Christ. Study alongside her:',
     growingTogether: [
@@ -162,8 +161,8 @@ const missionaries: MissionaryRecord[] = [
     phaseSince: 'Since October 2026',
     language: 'Japanese-speaking',
     moments: [
-      { title: 'Entered the MTC', description: 'Beginning language and teaching training', phase: 'mtc', when: 'October 2026', done: true },
-      { title: 'Enters the field', description: 'Begins serving in the assigned area', phase: 'serving', when: 'January 2027', done: false },
+      { title: 'Entered the MTC', phase: 'mtc', when: 'October 2026', done: true },
+      { title: 'Enters the field', phase: 'serving', when: 'January 2027', done: false },
     ],
     growingTogetherIntro: 'David is learning to teach and serve. Study alongside him:',
     growingTogether: [{ id: 'pray-for-david', title: 'Pray for David', description: 'And for the people he will serve' }],
@@ -185,7 +184,7 @@ const missionaries: MissionaryRecord[] = [
     phaseSince: 'Since August 2026',
     language: 'English-speaking',
     moments: [
-      { title: 'Returned home', description: 'Welcomed home by family and friends', phase: 'home', when: 'August 2026', done: true },
+      { title: 'Returned home', phase: 'home', when: 'August 2026', done: true },
     ],
     growingTogetherIntro: 'Claire is home and continuing to serve in new ways:',
     growingTogether: [{ id: 'pray-for-claire', title: 'Pray with Claire', description: 'As she finds ways to keep serving' }],
@@ -200,7 +199,7 @@ const missionaries: MissionaryRecord[] = [
 function describeStatus({ phase, missionDetails }: MissionaryRecord) {
   switch (phase) {
     case 'assigned':
-      return 'Preparing to serve';
+      return 'Assigned';
     case 'mtc':
       return 'At the MTC';
     case 'serving':
@@ -266,9 +265,9 @@ export function buildLinkedMissionary(form: LinkMissionaryForm, today = new Date
     phaseSince: 'Just linked',
     language: '',
     moments: [
-      { title: 'Enters the MTC', description: 'The start of the mission', phase: 'mtc', when: mtcWhen, done: phase === 'serving' },
+      { title: 'Enters the MTC', phase: 'mtc', when: mtcWhen, done: phase === 'serving' },
       ...(form.missionLength
-        ? [{ title: 'Returning home', description: `After ${form.missionLength}`, phase: 'home' as const, done: false }]
+        ? [{ title: 'Returning home', phase: 'home' as const, when: `After ${form.missionLength}`, done: false }]
         : []),
     ],
     growingTogetherIntro: `Study and pray alongside ${firstName}:`,
