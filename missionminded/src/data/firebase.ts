@@ -4,6 +4,7 @@ import { getApp, getApps, initializeApp } from 'firebase/app';
 // @ts-expect-error Metro resolves the React Native export at runtime.
 import { getAuth, getReactNativePersistence, initializeAuth, type Auth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
+import { getStorage } from 'firebase/storage';
 import { Platform } from 'react-native';
 
 const configKeys = {
@@ -53,4 +54,8 @@ export function getFirebaseAuth(): Auth {
 
 export function getFirebaseFirestore() {
   return getFirestore(getFirebaseApp());
+}
+
+export function getFirebaseStorage() {
+  return getStorage(getFirebaseApp());
 }

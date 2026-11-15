@@ -4,6 +4,9 @@
  */
 export const colors = {
   navy: '#0A3255',
+  brandBlue: '#123A72',
+  brandSurface: '#F7F8F8',
+  bubbleBlue: '#78AEEB',
   lightBlue: '#5D95D0',
   white: '#FFFFFF',
   canvas: '#FAF9F5',

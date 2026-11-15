@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 import { useFonts } from 'expo-font';
 import { ScopeOne_400Regular } from '@expo-google-fonts/scope-one';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AuthProvider, useAuth } from '@/data/auth';
 import { MissionariesProvider } from '@/data/missionaries';
@@ -14,16 +15,18 @@ function RootStack() {
   if (loading) return null;
 
   return (
-    <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#FFFFFF' } }}>
-      <Stack.Protected guard={!!user}>
-        <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="missionary/[id]" />
-        <Stack.Screen name="link-missionary" />
-      </Stack.Protected>
-      <Stack.Protected guard={!user}>
-        <Stack.Screen name="(auth)/login" />
-      </Stack.Protected>
-    </Stack>
+    <SafeAreaView edges={['top']} style={[styles.safeArea, !user && styles.authSafeArea]}>
+      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#FFFFFF' } }}>
+        <Stack.Protected guard={!!user}>
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="missionary/[id]" />
+          <Stack.Screen name="link-missionary" />
+        </Stack.Protected>
+        <Stack.Protected guard={!user}>
+          <Stack.Screen name="(auth)/login" />
+        </Stack.Protected>
+      </Stack>
+    </SafeAreaView>
   );
 }
 
@@ -54,6 +57,13 @@ export default function RootLayout() {
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: colors.brandSurface,
+  },
+  authSafeArea: {
+    backgroundColor: colors.brandBlue,
+  },
   webBackdrop: {
     flex: 1,
     alignItems: 'center',

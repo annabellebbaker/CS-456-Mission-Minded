@@ -1,8 +1,9 @@
 import { arrayUnion, collection, deleteDoc, doc, onSnapshot, setDoc, updateDoc } from 'firebase/firestore';
+import { deleteObject, getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 
 import { PREVIEW_USER_ID, useAuth } from '@/data/auth';
-import { getFirebaseFirestore } from '@/data/firebase';
+import { getFirebaseFirestore, getFirebaseStorage } from '@/data/firebase';
 import {
   buildLinkedMissionary,
   getSampleMissionaries,
@@ -20,7 +21,11 @@ type MissionariesContextValue = {
   missionaries: MissionaryDetails[];
   getById: (id: string) => MissionaryDetails | undefined;
   linkMissionary: (form: LinkMissionaryForm) => Promise<MissionaryDetails>;
-  addJournalEntry: (missionaryId: string, entry: { title: string; body: string }) => Promise<void>;
+  addJournalEntry: (missionaryId: string, entry: {
+    title: string;
+    body: string;
+    photo?: { uri: string; mimeType?: string | null };
+  }) => Promise<void>;
   updateMissionary: (missionaryId: string, form: LinkMissionaryForm) => Promise<void>;
   deleteMissionary: (missionaryId: string) => Promise<void>;
   updatePhaseMomentDate: (missionaryId: string, phase: MissionPhase, title: string, date: string) => Promise<void>;
@@ -57,6 +62,29 @@ function asRecord(value: unknown): Record<string, unknown> {
 
 function asString(value: unknown, fallback = ''): string {
   return typeof value === 'string' ? value : fallback;
+}
+
+function blobFromUri(uri: string): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const request = new XMLHttpRequest();
+    request.onload = () => {
+      if (request.status === 0 || (request.status >= 200 && request.status < 300)) {
+        resolve(request.response as Blob);
+      } else {
+        reject(new Error('Could not read the selected photo.'));
+      }
+    };
+    request.onerror = () => reject(new Error('Could not read the selected photo.'));
+    request.responseType = 'blob';
+    request.open('GET', uri, true);
+    request.send(null);
+  });
+}
+
+function getImageExtension(mimeType: string): string {
+  const subtype = mimeType.split('/')[1]?.toLowerCase().split(';')[0];
+  if (!subtype) return 'jpg';
+  return subtype === 'jpeg' ? 'jpg' : subtype.replace(/[^a-z0-9]/g, '') || 'jpg';
 }
 
 function isMissionPhase(value: unknown): value is MissionPhase {
@@ -145,6 +173,8 @@ function normalizeMissionary(id: string, value: unknown): MissionaryDetails {
         body,
         date,
         author: asString(item.author, 'Main supporter'),
+        ...(asString(item.imageUrl) ? { imageUrl: asString(item.imageUrl) } : {}),
+        ...(asString(item.imagePath) ? { imagePath: asString(item.imagePath) } : {}),
       } satisfies JournalEntry] : [];
     })
     : [];
@@ -261,18 +291,45 @@ export function MissionariesProvider({ children }: { children: ReactNode }) {
     return missionary;
   }, [user]);
 
-  const addJournalEntry = useCallback(async (missionaryId: string, entry: { title: string; body: string }) => {
+  const addJournalEntry = useCallback(async (missionaryId: string, entry: {
+    title: string;
+    body: string;
+    photo?: { uri: string; mimeType?: string | null };
+  }) => {
     if (!user) throw new Error('Sign in to post a journal update.');
     const missionary = missionaries.find((item) => item.id === missionaryId);
     if (!missionary?.isMainSupporter) throw new Error('Only the main supporter can post journal updates.');
     const now = new Date();
     const date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const id = `${missionaryId}-journal-${now.getTime()}-${Math.random().toString(36).slice(2, 8)}`;
+    const mimeType = entry.photo?.mimeType?.startsWith('image/') ? entry.photo.mimeType : 'image/jpeg';
+    let photoRef: ReturnType<typeof ref> | null = null;
+    let imageUrl: string | undefined;
+    let imagePath: string | undefined;
+
+    if (entry.photo && user.id !== PREVIEW_USER_ID) {
+      imagePath = `missionJournals/${user.id}/${missionaryId}/${id}/photo.${getImageExtension(mimeType)}`;
+      photoRef = ref(getFirebaseStorage(), imagePath);
+      const photoBlob = await blobFromUri(entry.photo.uri);
+      try {
+        await uploadBytes(photoRef, photoBlob, { contentType: mimeType });
+        imageUrl = await getDownloadURL(photoRef);
+      } catch (error) {
+        await deleteObject(photoRef).catch(() => undefined);
+        throw error;
+      }
+    } else if (entry.photo) {
+      imageUrl = entry.photo.uri;
+    }
+
     const item: JournalEntry = {
-      id: `${missionaryId}-journal-${now.getTime()}`,
+      id,
       title: entry.title.trim(),
       body: entry.body.trim(),
       date,
       author: user.name || 'You',
+      ...(imageUrl ? { imageUrl } : {}),
+      ...(imagePath ? { imagePath } : {}),
     };
     if (user.id === PREVIEW_USER_ID) {
       setData((current) => ({
@@ -284,7 +341,12 @@ export function MissionariesProvider({ children }: { children: ReactNode }) {
       return;
     }
     const reference = doc(getFirebaseFirestore(), 'users', user.id, 'missionaries', missionaryId);
-    await updateDoc(reference, { journal: arrayUnion(item) });
+    try {
+      await updateDoc(reference, { journal: arrayUnion(item) });
+    } catch (error) {
+      if (photoRef) await deleteObject(photoRef).catch(() => undefined);
+      throw error;
+    }
   }, [missionaries, user]);
 
   const updateMissionary = useCallback(async (missionaryId: string, form: LinkMissionaryForm) => {

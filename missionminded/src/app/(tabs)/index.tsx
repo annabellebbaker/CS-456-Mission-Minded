@@ -1,9 +1,8 @@
 import { router } from 'expo-router';
+import { Image } from 'expo-image';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { AppText as Text } from '@/components/app-text';
-import { PhaseTracker } from '@/components/phase-tracker';
-import { useAuth } from '@/data/auth';
 import { useMissionaries } from '@/data/missionaries';
 import type { MissionaryDetails } from '@/data/repository';
 import { colors, spacing } from '@/theme/colors';
@@ -13,7 +12,7 @@ function MissionaryCard({ missionary }: { missionary: MissionaryDetails }) {
     <Pressable
       accessibilityRole="button"
       onPress={() => router.push({ pathname: '/missionary/[id]', params: { id: missionary.id } })}
-      accessibilityLabel={`${missionary.name}, ${missionary.status}. View journey.`}
+      accessibilityLabel={`${missionary.name}. View details.`}
       style={({ pressed }) => [styles.missionaryCard, pressed && styles.missionaryCardPressed]}>
       <View style={styles.missionaryHeading}>
         <View style={styles.missionaryCopy}>
@@ -24,18 +23,11 @@ function MissionaryCard({ missionary }: { missionary: MissionaryDetails }) {
         </View>
         <Text accessibilityElementsHidden style={styles.cardArrow}>›</Text>
       </View>
-      <View style={styles.statusPill}>
-        <View style={styles.statusDot} />
-        <Text style={styles.statusText}>{missionary.status}</Text>
-      </View>
-      <View style={styles.trackerDivider} />
-      <PhaseTracker phase={missionary.phase} />
     </Pressable>
   );
 }
 
 export default function HomeScreen() {
-  const { user } = useAuth();
   const { missionaries } = useMissionaries();
 
   return (
@@ -44,14 +36,14 @@ export default function HomeScreen() {
       contentContainerStyle={styles.scrollContent}
       showsVerticalScrollIndicator={false}>
       <View style={styles.content}>
-        <View style={styles.brandRow}>
-          <View style={styles.brandMark} accessibilityElementsHidden>
-            <Text style={styles.brandMarkText}>M</Text>
-          </View>
-          <Text style={styles.brandName}>MissionMinded</Text>
+        <View style={styles.brandHeader}>
+          <Image
+            source={require('../../../assets/images/missionminded-fulltextlogo.png')}
+            style={styles.brandLogo}
+            contentFit="cover"
+            accessibilityLabel="MissionMinded logo"
+          />
         </View>
-
-        <Text style={styles.greeting}>Hi, {user?.name ?? 'there'}.</Text>
 
         <View style={styles.missionariesSection}>
           <View style={styles.sectionHeading}>
@@ -77,7 +69,7 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: colors.white,
+    backgroundColor: colors.brandSurface,
   },
   scrollContent: {
     flexGrow: 1,
@@ -89,36 +81,15 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 480,
     alignSelf: 'center',
-    gap: spacing.xl,
+    gap: spacing.lg,
   },
-  brandRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  brandMark: {
-    width: 38,
-    height: 38,
+  brandHeader: {
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 10,
-    backgroundColor: colors.navy,
   },
-  brandMarkText: {
-    color: colors.lightBlue,
-    fontSize: 22,
-    fontWeight: '800',
-  },
-  brandName: {
-    color: colors.navy,
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  greeting: {
-    marginTop: -spacing.sm,
-    color: colors.navy,
-    fontSize: 27,
-    fontWeight: '700',
+  brandLogo: {
+    width: '100%',
+    height: 88,
   },
   sectionEyebrow: {
     color: colors.textSecondary,
@@ -171,27 +142,6 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontSize: 14,
   },
-  statusPill: {
-    alignSelf: 'flex-start',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 6,
-    borderRadius: 16,
-    backgroundColor: '#F0F6FB',
-  },
-  statusDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
-    backgroundColor: colors.lightBlue,
-  },
-  statusText: {
-    color: colors.navy,
-    fontSize: 13,
-    fontWeight: '600',
-  },
   linkButton: {
     minHeight: 48,
     alignItems: 'center',
@@ -205,9 +155,5 @@ const styles = StyleSheet.create({
     color: colors.navy,
     fontSize: 14,
     fontWeight: '600',
-  },
-  trackerDivider: {
-    height: 1,
-    backgroundColor: '#E6EBF0',
   },
 });

@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 
 import { Image } from 'expo-image';
+import { StatusBar } from 'expo-status-bar';
 
 import { AppText as Text, AppTextInput as TextInput } from '@/components/app-text';
 import { useAuth } from '@/data/auth';
@@ -58,18 +59,16 @@ export default function LoginScreen() {
     <KeyboardAvoidingView
       style={styles.screen}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <StatusBar style="light" />
       <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
         <View style={styles.content}>
           <View style={styles.brand}>
-            <View style={styles.brandMark}>
-              <Image
-                source={require('../../../assets/images/brand/logo-white.png')}
-                style={styles.brandLogo}
-                contentFit="contain"
-                accessibilityLabel="MissionMinded logo"
-              />
-            </View>
-            <Text style={styles.brandName}>MISSION{'\n'}MINDED</Text>
+            <Image
+              source={require('../../../assets/images/missionminded-smalllogo.png')}
+              style={styles.brandLogo}
+              contentFit="contain"
+              accessibilityLabel="MissionMinded logo"
+            />
           </View>
 
           <View style={styles.card}>
@@ -164,57 +163,39 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: colors.white,
+    backgroundColor: colors.brandBlue,
   },
   scrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.xxl,
+    paddingVertical: spacing.xl,
   },
   content: {
     width: '100%',
     maxWidth: 400,
     alignSelf: 'center',
-    gap: spacing.xxl,
+    gap: spacing.lg,
   },
   brand: {
     alignItems: 'center',
-    gap: spacing.md,
-  },
-  brandMark: {
-    width: 96,
-    height: 96,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 22,
-    backgroundColor: colors.navy,
   },
   brandLogo: {
-    width: 70,
-    height: 67,
-  },
-  brandName: {
-    color: colors.navy,
-    fontSize: 28,
-    fontWeight: '800',
-    lineHeight: 30,
-    letterSpacing: 1,
-    textAlign: 'center',
+    width: '100%',
+    maxWidth: 260,
+    aspectRatio: 1,
   },
   card: {
+    width: '90%',
+    maxWidth: 320,
+    alignSelf: 'center',
     gap: spacing.lg,
-    padding: spacing.lg,
-    borderWidth: 1.5,
-    borderColor: colors.navy,
-    borderRadius: 16,
-    backgroundColor: colors.white,
   },
   field: {
     gap: spacing.xs,
   },
   label: {
-    color: colors.navy,
+    color: colors.white,
     fontSize: 12,
     fontWeight: '700',
     letterSpacing: 0.8,
@@ -230,7 +211,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
   },
   error: {
-    color: '#A12626',
+    color: '#FFE3E3',
     fontSize: 14,
   },
   primaryButton: {
@@ -238,16 +219,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 10,
-    backgroundColor: colors.navy,
+    backgroundColor: colors.bubbleBlue,
   },
   primaryButtonText: {
-    color: colors.white,
+    color: colors.navy,
     fontSize: 16,
     fontWeight: '700',
   },
   modeButton: { minHeight: 42, alignItems: 'center', justifyContent: 'center' },
-  modeButtonText: { color: colors.navy, fontSize: 14, fontWeight: '600' },
-  previewButtonText: { color: colors.textSecondary, fontSize: 13, textDecorationLine: 'underline' },
+  modeButtonText: { color: colors.white, fontSize: 14, fontWeight: '600' },
+  previewButtonText: { color: '#DCE9FA', fontSize: 13, textDecorationLine: 'underline' },
   disabled: { opacity: 0.6 },
   pressed: {
     opacity: 0.75,

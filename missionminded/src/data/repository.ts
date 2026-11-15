@@ -24,7 +24,10 @@ export type GrowingTogetherItem = {
 export type JournalEntry = {
   id: string;
   title: string;
+  /** The post caption. */
   body: string;
+  imageUrl?: string;
+  imagePath?: string;
   /** YYYY-MM-DD */
   date: string;
   /** Name of the supporter who posted it. */

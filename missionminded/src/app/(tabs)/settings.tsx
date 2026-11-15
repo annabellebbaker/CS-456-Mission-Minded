@@ -21,7 +21,7 @@ export default function SettingsScreen() {
           </View>
           <View style={styles.supporterCopy}>
             <Text style={styles.supporterName}>{user?.name}</Text>
-            <Text style={styles.mutedText}>Missionary supporter · {user?.ward}</Text>
+            <Text style={styles.mutedText}>Missionary follower · {user?.ward}</Text>
           </View>
         </View>
 
