@@ -47,24 +47,24 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="calendar"
+        name="missionary"
         options={{
-          title: 'Calendar',
-          tabBarIcon: tabIcon({ ios: 'calendar', android: 'calendar_month', web: 'calendar_month' }),
+          title: 'Missionary',
+          tabBarIcon: tabIcon({ ios: 'globe.americas.fill', android: 'public', web: 'public' }),
         }}
       />
       <Tabs.Screen
-        name="packing"
+        name="journal"
         options={{
-          title: 'Packing',
-          tabBarIcon: tabIcon({ ios: 'bag.fill', android: 'backpack', web: 'backpack' }),
+          title: 'Journal',
+          tabBarIcon: tabIcon({ ios: 'book.closed.fill', android: 'menu_book', web: 'menu_book' }),
         }}
       />
       <Tabs.Screen
-        name="profile"
+        name="settings"
         options={{
-          title: 'Profile',
-          tabBarIcon: tabIcon({ ios: 'person.crop.circle', android: 'person', web: 'person' }),
+          title: 'Settings',
+          tabBarIcon: tabIcon({ ios: 'gearshape.fill', android: 'settings', web: 'settings' }),
         }}
       />
     </Tabs>

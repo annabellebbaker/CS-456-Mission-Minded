@@ -9,7 +9,7 @@ import {
   getPhaseLabel,
   type LinkMissionaryForm,
   missionPhases,
-  type CalendarItem,
+  type JournalEntry,
   type GrowingTogetherItem,
   type PhaseMoment,
   type MissionPhase,
@@ -20,7 +20,7 @@ type MissionariesContextValue = {
   missionaries: MissionaryDetails[];
   getById: (id: string) => MissionaryDetails | undefined;
   linkMissionary: (form: LinkMissionaryForm) => Promise<MissionaryDetails>;
-  addCalendarItem: (missionaryId: string, title: string, date: string) => Promise<void>;
+  addJournalEntry: (missionaryId: string, entry: { title: string; body: string }) => Promise<void>;
   updatePhaseMomentDate: (missionaryId: string, phase: MissionPhase, title: string, date: string) => Promise<void>;
   checked: Record<string, boolean>;
   toggleChecked: (key: string) => void;
@@ -110,10 +110,6 @@ function normalizeMissionary(id: string, value: unknown): MissionaryDetails {
   const words = name.trim().split(/\s+/).filter(Boolean);
   const phase = normalizePhase(raw.phase, raw.currentStage);
   const details = asRecord(raw.missionDetails);
-  const climateValue = asRecord(raw.climate);
-  const climate = typeof climateValue.label === 'string' && Array.isArray(climateValue.items)
-    ? { label: climateValue.label, items: climateValue.items.filter((item): item is string => typeof item === 'string') }
-    : null;
 
   const moments = normalizeMoments(raw.moments, raw.journey, raw['milestones'], phase);
   const growingTogether = Array.isArray(raw.growingTogether)
@@ -127,14 +123,21 @@ function normalizeMissionary(id: string, value: unknown): MissionaryDetails {
       } satisfies GrowingTogetherItem] : [];
     })
     : [];
-  const calendar = Array.isArray(raw.calendar)
-    ? raw.calendar.flatMap((entry, index) => {
+  const journal = Array.isArray(raw.journal)
+    ? raw.journal.flatMap((entry, index) => {
       const item = asRecord(entry);
-      const title = asString(item.title).trim();
+      const body = asString(item.body).trim();
       const date = asString(item.date);
-      return title && date ? [{ id: asString(item.id, `${id}-calendar-${index}`), title, date } satisfies CalendarItem] : [];
+      return body && date ? [{
+        id: asString(item.id, `${id}-journal-${index}`),
+        title: asString(item.title).trim(),
+        body,
+        date,
+        author: asString(item.author, 'Main supporter'),
+      } satisfies JournalEntry] : [];
     })
     : [];
+  const isMainSupporter = raw.isMainSupporter !== false;
   return {
     id,
     name,
@@ -152,8 +155,9 @@ function normalizeMissionary(id: string, value: unknown): MissionaryDetails {
     growingTogether,
     ponderText: asString(raw.ponderText),
     ponderReference: asString(raw.ponderReference),
-    calendar,
-    climate,
+    mainSupporter: asString(raw.mainSupporter, isMainSupporter ? 'You' : 'Main supporter'),
+    isMainSupporter,
+    journal,
     missionDetails: {
       companion: typeof details.companion === 'string' ? details.companion : null,
       area: typeof details.area === 'string' ? details.area : null,
@@ -243,21 +247,31 @@ export function MissionariesProvider({ children }: { children: ReactNode }) {
     return missionary;
   }, [user]);
 
-  const addCalendarItem = useCallback(async (missionaryId: string, title: string, date: string) => {
-    if (!user) throw new Error('Sign in to add an appointment.');
-    const item = { id: `${missionaryId}-${Date.now()}`, title, date };
+  const addJournalEntry = useCallback(async (missionaryId: string, entry: { title: string; body: string }) => {
+    if (!user) throw new Error('Sign in to post a journal update.');
+    const missionary = missionaries.find((item) => item.id === missionaryId);
+    if (!missionary?.isMainSupporter) throw new Error('Only the main supporter can post journal updates.');
+    const now = new Date();
+    const date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const item: JournalEntry = {
+      id: `${missionaryId}-journal-${now.getTime()}`,
+      title: entry.title.trim(),
+      body: entry.body.trim(),
+      date,
+      author: user.name || 'You',
+    };
     if (user.id === PREVIEW_USER_ID) {
       setData((current) => ({
         ...current,
-        missionaries: current.missionaries.map((missionary) => missionary.id === missionaryId
-          ? { ...missionary, calendar: [...missionary.calendar, item] }
-          : missionary),
+        missionaries: current.missionaries.map((existing) => existing.id === missionaryId
+          ? { ...existing, journal: [...existing.journal, item] }
+          : existing),
       }));
       return;
     }
     const reference = doc(getFirebaseFirestore(), 'users', user.id, 'missionaries', missionaryId);
-    await updateDoc(reference, { calendar: arrayUnion(item) });
-  }, [user]);
+    await updateDoc(reference, { journal: arrayUnion(item) });
+  }, [missionaries, user]);
 
   const updatePhaseMomentDate = useCallback(async (missionaryId: string, phase: MissionPhase, title: string, date: string) => {
     if (!user) throw new Error('Sign in to update a phase moment.');
@@ -306,7 +320,7 @@ export function MissionariesProvider({ children }: { children: ReactNode }) {
     missionaries,
     getById: (id) => missionaries.find((missionary) => missionary.id === id),
     linkMissionary,
-    addCalendarItem,
+    addJournalEntry,
     updatePhaseMomentDate,
     checked,
     toggleChecked,

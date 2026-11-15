@@ -3,7 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text } from 'react-native';
 import { useMissionaries } from '@/data/missionaries';
 import { colors, spacing } from '@/theme/colors';
 
-/** Chips for choosing which missionary the Calendar and Packing tabs show. */
+/** Chips for choosing which missionary the Missionary and Journal tabs show. */
 export function MissionaryPicker() {
   const { missionaries, selectedId, setSelectedId } = useMissionaries();
 

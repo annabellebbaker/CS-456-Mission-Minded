@@ -20,12 +20,15 @@ export type GrowingTogetherItem = {
   description: string;
 };
 
-/** A to-do or appointment on the Calendar tab. */
-export type CalendarItem = {
+/** An update the main supporter posts to the Journal tab for other supporters to read. */
+export type JournalEntry = {
   id: string;
   title: string;
+  body: string;
   /** YYYY-MM-DD */
   date: string;
+  /** Name of the supporter who posted it. */
+  author: string;
 };
 
 export type MissionaryDetails = {
@@ -50,8 +53,11 @@ export type MissionaryDetails = {
   growingTogether: GrowingTogetherItem[];
   ponderText: string;
   ponderReference: string;
-  calendar: CalendarItem[];
-  climate: { label: string; items: string[] } | null;
+  /** Who posts Journal updates for this missionary, like "Michelle Taylor (Mom)". */
+  mainSupporter: string;
+  /** True when the signed-in user is the main supporter and can post to the Journal. */
+  isMainSupporter: boolean;
+  journal: JournalEntry[];
   missionDetails: {
     companion: string | null;
     area: string | null;
@@ -63,16 +69,6 @@ export type MissionaryDetails = {
 };
 
 type MissionaryRecord = Omit<MissionaryDetails, 'status'>;
-
-/** Packing items every missionary needs, whatever the mission. */
-export const packingEssentials = [
-  'Scriptures & Preach My Gospel',
-  'Missionary name tags (2)',
-  'Dress shirts or blouses',
-  'Dress pants or skirts',
-  'Comfortable walking shoes',
-  'Toiletries kit',
-];
 
 const missionaries: MissionaryRecord[] = [
   {
@@ -101,15 +97,24 @@ const missionaries: MissionaryRecord[] = [
     ],
     ponderText: 'Wherefore, if ye have desires to serve God ye are called to the work.',
     ponderReference: 'Doctrine and Covenants 4:3',
-    calendar: [
-      { id: 'jacob-1', title: 'Temple preparation class', date: '2026-11-04' },
-      { id: 'jacob-3', title: 'Passport photos', date: '2026-11-14' },
-      { id: 'jacob-4', title: 'Dinner with the bishop', date: '2026-11-22' },
+    mainSupporter: 'You',
+    isMainSupporter: true,
+    journal: [
+      {
+        id: 'jacob-j1',
+        title: 'Mission call opened!',
+        body: 'Jacob opened his call with the whole family on video. He reports to the MTC in January and is already practicing his Spanish at dinner.',
+        date: '2026-09-21',
+        author: 'You',
+      },
+      {
+        id: 'jacob-j2',
+        title: 'Passport appointment done',
+        body: 'Photos taken and paperwork submitted. Visa paperwork is next.',
+        date: '2026-11-14',
+        author: 'You',
+      },
     ],
-    climate: {
-      label: 'Warm & humid',
-      items: ['Lightweight breathable shirts', 'Packable rain jacket', 'Sunscreen & wide-brim hat', 'Insect repellent', 'Quick-dry socks'],
-    },
     missionDetails: { companion: null, area: null, leaders: null, office: null, phone: null, email: null },
   },
   {
@@ -137,16 +142,24 @@ const missionaries: MissionaryRecord[] = [
     ],
     ponderText: 'Ye are the light of the world. A city that is set on an hill cannot be hid.',
     ponderReference: 'Matthew 5:14',
-    calendar: [
-      { id: 'ana-1', title: 'Write back on P-day', date: '2026-11-02' },
-      { id: 'ana-2', title: 'Write back on P-day', date: '2026-11-09' },
-      { id: 'ana-3', title: 'Transfer day', date: '2026-11-10' },
-      { id: 'ana-4', title: 'Mail Christmas package by', date: '2026-11-16' },
+    mainSupporter: 'Michelle Taylor (Mom)',
+    isMainSupporter: false,
+    journal: [
+      {
+        id: 'ana-j1',
+        title: 'Settling into Wasilla',
+        body: 'Ana says Wasilla already has snow on the ground. She and her companion are teaching three families this week.',
+        date: '2026-09-28',
+        author: 'Michelle Taylor (Mom)',
+      },
+      {
+        id: 'ana-j2',
+        title: 'Christmas packages',
+        body: 'Packages to Alaska take about three weeks. Please mail anything for Ana by November 30.',
+        date: '2026-11-09',
+        author: 'Michelle Taylor (Mom)',
+      },
     ],
-    climate: {
-      label: 'Cold & snowy',
-      items: ['Insulated winter coat', 'Waterproof snow boots', 'Thermal base layers', 'Gloves, hat & scarf', 'Ice traction cleats'],
-    },
     missionDetails: { companion: null, area: 'Wasilla', leaders: null, office: null, phone: null, email: null },
   },
   {
@@ -168,8 +181,17 @@ const missionaries: MissionaryRecord[] = [
     growingTogether: [{ id: 'pray-for-david', title: 'Pray for David', description: 'And for the people he will serve' }],
     ponderText: 'I will go before your face. I will be on your right hand and on your left.',
     ponderReference: 'Doctrine and Covenants 84:88',
-    calendar: [],
-    climate: null,
+    mainSupporter: 'Grace Kim (Mom)',
+    isMainSupporter: false,
+    journal: [
+      {
+        id: 'david-j1',
+        title: 'First week at the MTC',
+        body: 'David wrote that Japanese is hard but his district is great. He gets emails on Mondays.',
+        date: '2026-10-19',
+        author: 'Grace Kim (Mom)',
+      },
+    ],
     missionDetails: { companion: null, area: null, leaders: null, office: null, phone: null, email: null },
   },
   {
@@ -190,8 +212,9 @@ const missionaries: MissionaryRecord[] = [
     growingTogether: [{ id: 'pray-for-claire', title: 'Pray with Claire', description: 'As she finds ways to keep serving' }],
     ponderText: 'By small and simple things are great things brought to pass.',
     ponderReference: 'Alma 37:6',
-    calendar: [],
-    climate: null,
+    mainSupporter: 'Robert Miller (Dad)',
+    isMainSupporter: false,
+    journal: [],
     missionDetails: { companion: null, area: null, leaders: null, office: null, phone: null, email: null },
   },
 ];
@@ -220,15 +243,10 @@ export function getSampleMissionaries(): MissionaryDetails[] {
       ...missionary,
       moments: [...missionary.moments],
       growingTogether: [...missionary.growingTogether],
-      calendar: [...missionary.calendar],
+      journal: [...missionary.journal],
       missionDetails: { ...missionary.missionDetails },
     }),
   );
-}
-
-/** The first phase moment that hasn't happened yet. Calendar shows this instead of a countdown. */
-export function getNextMoment(missionary: MissionaryDetails): PhaseMoment | undefined {
-  return missionary.moments.find((moment) => !moment.done);
 }
 
 export type LinkMissionaryForm = {
@@ -274,8 +292,10 @@ export function buildLinkedMissionary(form: LinkMissionaryForm, today = new Date
     growingTogether: [{ id: 'pray', title: `Pray for ${firstName} as a family`, description: 'And for the people they serve' }],
     ponderText: 'By small and simple things are great things brought to pass.',
     ponderReference: 'Alma 37:6',
-    calendar: [],
-    climate: null,
+    // Whoever links a missionary starts as their main supporter, so they can post to the Journal.
+    mainSupporter: 'You',
+    isMainSupporter: true,
+    journal: [],
     missionDetails: { companion: null, area: null, leaders: null, office: null, phone: null, email: null },
   });
 }

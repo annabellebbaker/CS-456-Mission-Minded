@@ -10,7 +10,7 @@ import { colors, spacing } from '@/theme/colors';
 // Toggles only change saved settings for now. No real notifications yet (see spec Open Decisions).
 const reminderSettings = ['Phase reminders', 'Prayer reminders'];
 
-export default function ProfileScreen() {
+export default function SettingsScreen() {
   const { user, signOut } = useAuth();
   const { missionaries } = useMissionaries();
   const [settings, setSettings] = useState<Record<string, boolean>>({
@@ -21,7 +21,7 @@ export default function ProfileScreen() {
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
       <View style={styles.content}>
-        <Text style={styles.pageTitle}>Profile</Text>
+        <Text style={styles.pageTitle}>Settings</Text>
 
         <View style={styles.supporterCard}>
           <View style={styles.avatar} accessibilityElementsHidden>
@@ -60,7 +60,7 @@ export default function ProfileScreen() {
           <Text style={styles.dashedButtonText}>+ Link a missionary</Text>
         </Pressable>
 
-        <Text style={styles.eyebrow}>SETTINGS</Text>
+        <Text style={styles.eyebrow}>REMINDERS</Text>
         <View style={styles.listCard}>
           {reminderSettings.map((label, index) => (
             <View key={label} style={[styles.listRow, index < reminderSettings.length - 1 && styles.divider]}>
