@@ -1,4 +1,4 @@
-import { arrayUnion, collection, doc, onSnapshot, setDoc, updateDoc } from 'firebase/firestore';
+import { arrayUnion, collection, deleteDoc, doc, onSnapshot, setDoc, updateDoc } from 'firebase/firestore';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 
 import { PREVIEW_USER_ID, useAuth } from '@/data/auth';
@@ -21,6 +21,8 @@ type MissionariesContextValue = {
   getById: (id: string) => MissionaryDetails | undefined;
   linkMissionary: (form: LinkMissionaryForm) => Promise<MissionaryDetails>;
   addJournalEntry: (missionaryId: string, entry: { title: string; body: string }) => Promise<void>;
+  updateMissionary: (missionaryId: string, form: LinkMissionaryForm) => Promise<void>;
+  deleteMissionary: (missionaryId: string) => Promise<void>;
   updatePhaseMomentDate: (missionaryId: string, phase: MissionPhase, title: string, date: string) => Promise<void>;
   checked: Record<string, boolean>;
   toggleChecked: (key: string) => void;
@@ -106,8 +108,17 @@ function normalizeMoments(value: unknown, legacyJourney: unknown, legacyMoments:
 
 function normalizeMissionary(id: string, value: unknown): MissionaryDetails {
   const raw = asRecord(value);
-  const name = asString(raw.name, 'Missionary');
-  const words = name.trim().split(/\s+/).filter(Boolean);
+  const storedName = asString(raw.name, 'Missionary').trim();
+  const words = storedName.split(/\s+/).filter(Boolean);
+  const titleFromName = /^(Elder|Sister)\b/i.exec(words[0] ?? '')?.[1] ?? '';
+  const title = asString(raw.title).trim() || titleFromName;
+  const firstName = asString(raw.firstName).trim() || words[titleFromName ? 1 : 0] || storedName;
+  const lastName = asString(raw.lastName).trim()
+    || (words.length > (titleFromName ? 2 : 1) ? words.slice(titleFromName ? 2 : 1).join(' ') : '');
+  const name = title && firstName && lastName
+    ? [title, firstName, lastName].join(' ')
+    : storedName;
+  const shortName = asString(raw.shortName).trim() || [title, lastName || firstName].filter(Boolean).join(' ');
   const phase = normalizePhase(raw.phase, raw.currentStage);
   const details = asRecord(raw.missionDetails);
 
@@ -140,11 +151,14 @@ function normalizeMissionary(id: string, value: unknown): MissionaryDetails {
   const isMainSupporter = raw.isMainSupporter !== false;
   return {
     id,
+    title,
     name,
-    shortName: asString(raw.shortName, words.length > 1 ? `${words[0]} ${words[words.length - 1]}` : name),
-    firstName: asString(raw.firstName, words.find((word) => !/^(elder|sister|brother)$/i.test(word)) ?? name),
+    shortName,
+    firstName,
+    lastName,
     relationship: asString(raw.relationship, 'Supporter'),
     missionName: asString(raw.missionName, 'Mission not yet known'),
+    missionLength: asString(raw.missionLength),
     missionId: asString(raw.missionId),
     phase,
     phaseSince: asString(raw.phaseSince),
@@ -273,6 +287,51 @@ export function MissionariesProvider({ children }: { children: ReactNode }) {
     await updateDoc(reference, { journal: arrayUnion(item) });
   }, [missionaries, user]);
 
+  const updateMissionary = useCallback(async (missionaryId: string, form: LinkMissionaryForm) => {
+    if (!user) throw new Error('Sign in to update a missionary.');
+    const existing = missionaries.find((item) => item.id === missionaryId);
+    if (!existing) throw new Error('Missionary not found.');
+    const mtcWhen = form.mtcDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+    const name = [form.title, form.firstName.trim(), form.lastName.trim()].join(' ');
+    const moments = existing.moments.map((moment) => {
+      if (moment.phase === 'mtc' && /MTC/i.test(moment.title)) return { ...moment, when: mtcWhen };
+      if (moment.phase === 'home' && /return/i.test(moment.title)) {
+        return { ...moment, when: `After ${form.missionLength}` };
+      }
+      return moment;
+    });
+    const updated: MissionaryDetails = {
+      ...existing,
+      title: form.title,
+      name,
+      shortName: `${form.title} ${form.lastName.trim()}`,
+      firstName: form.firstName.trim(),
+      lastName: form.lastName.trim(),
+      relationship: form.relationship.trim(),
+      missionName: form.missionName.trim(),
+      missionId: form.missionId?.trim() ?? '',
+      missionLength: form.missionLength,
+      moments,
+    };
+    if (user.id !== PREVIEW_USER_ID) {
+      await updateDoc(doc(getFirebaseFirestore(), 'users', user.id, 'missionaries', missionaryId),
+        omitUndefined(updated) as Record<string, unknown>);
+    }
+    setData((current) => current.userId === user.id
+      ? { ...current, missionaries: current.missionaries.map((item) => item.id === missionaryId ? updated : item) }
+      : current);
+  }, [missionaries, user]);
+
+  const deleteMissionary = useCallback(async (missionaryId: string) => {
+    if (!user) throw new Error('Sign in to delete a missionary.');
+    if (user.id !== PREVIEW_USER_ID) {
+      await deleteDoc(doc(getFirebaseFirestore(), 'users', user.id, 'missionaries', missionaryId));
+    }
+    setData((current) => current.userId === user.id
+      ? { ...current, missionaries: current.missionaries.filter((item) => item.id !== missionaryId) }
+      : current);
+  }, [user]);
+
   const updatePhaseMomentDate = useCallback(async (missionaryId: string, phase: MissionPhase, title: string, date: string) => {
     if (!user) throw new Error('Sign in to update a phase moment.');
     const current = missionaries.find((missionary) => missionary.id === missionaryId);
@@ -321,6 +380,8 @@ export function MissionariesProvider({ children }: { children: ReactNode }) {
     getById: (id) => missionaries.find((missionary) => missionary.id === id),
     linkMissionary,
     addJournalEntry,
+    updateMissionary,
+    deleteMissionary,
     updatePhaseMomentDate,
     checked,
     toggleChecked,

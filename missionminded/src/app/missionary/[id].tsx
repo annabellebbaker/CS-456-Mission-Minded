@@ -154,9 +154,12 @@ function PhaseMomentList({
 
 export default function MissionaryScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { getById, updatePhaseMomentDate } = useMissionaries();
+  const { getById, updatePhaseMomentDate, deleteMissionary } = useMissionaries();
   const missionary = getById(Array.isArray(id) ? id[0] : id);
   const [detailsExpanded, setDetailsExpanded] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
 
   if (!missionary) {
     return (
@@ -210,6 +213,53 @@ export default function MissionaryScreen() {
         </Pressable>
 
         {detailsExpanded && <MissionDetails missionary={missionary} />}
+
+        <View style={styles.recordActions}>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => router.push({ pathname: '/link-missionary', params: { id: missionary.id } })}
+            style={({ pressed }) => [styles.editDetailsButton, pressed && styles.pressed]}>
+            <Text style={styles.editDetailsButtonText}>Edit details</Text>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            disabled={deleting}
+            onPress={() => {
+              setDeleteError('');
+              setConfirmDelete(true);
+            }}
+            style={({ pressed }) => [styles.deleteMissionaryButton, pressed && styles.pressed, deleting && styles.disabledButton]}>
+            <Text style={styles.deleteMissionaryButtonText}>Delete missionary</Text>
+          </Pressable>
+          {confirmDelete && (
+            <View style={styles.deleteConfirmation}>
+              <Text style={styles.deleteConfirmationText}>Delete {missionary.name}? This removes this missionary and their saved journey details.</Text>
+              <View style={styles.confirmationActions}>
+                <Pressable
+                  accessibilityRole="button"
+                  disabled={deleting}
+                  onPress={() => setConfirmDelete(false)}
+                  style={({ pressed }) => [styles.cancelDeleteButton, pressed && styles.pressed, deleting && styles.disabledButton]}>
+                  <Text style={styles.cancelDeleteText}>Cancel</Text>
+                </Pressable>
+                <Pressable
+                  accessibilityRole="button"
+                  disabled={deleting}
+                  onPress={() => {
+                    setDeleting(true);
+                    void deleteMissionary(missionary.id)
+                      .then(() => router.replace('/'))
+                      .catch(() => setDeleteError('Could not delete this missionary. Please try again.'))
+                      .finally(() => setDeleting(false));
+                  }}
+                  style={({ pressed }) => [styles.confirmDeleteButton, pressed && styles.pressed, deleting && styles.disabledButton]}>
+                  <Text style={styles.confirmDeleteText}>{deleting ? 'Deleting…' : 'Confirm delete'}</Text>
+                </Pressable>
+              </View>
+              {!!deleteError && <Text accessibilityRole="alert" style={styles.deleteError}>{deleteError}</Text>}
+            </View>
+          )}
+        </View>
       </View>
     </ScrollView>
   );
@@ -336,6 +386,19 @@ const styles = StyleSheet.create({
   },
   detailsToggleText: { color: colors.navy, fontSize: 16, fontWeight: '700' },
   detailsToggleIcon: { color: colors.navy, fontSize: 22 },
+  recordActions: { gap: spacing.sm, paddingTop: spacing.sm },
+  editDetailsButton: { minHeight: 50, alignItems: 'center', justifyContent: 'center', borderRadius: 10, backgroundColor: colors.navy },
+  editDetailsButtonText: { color: colors.white, fontSize: 15, fontWeight: '700' },
+  deleteMissionaryButton: { minHeight: 50, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#A12626', borderRadius: 10, backgroundColor: colors.white },
+  deleteMissionaryButtonText: { color: '#A12626', fontSize: 15, fontWeight: '700' },
+  deleteConfirmation: { gap: spacing.sm, padding: spacing.md, borderWidth: 1, borderColor: '#E2B8B8', borderRadius: 10, backgroundColor: '#FFF8F8' },
+  deleteConfirmationText: { color: colors.text, fontSize: 14, lineHeight: 20 },
+  confirmationActions: { flexDirection: 'row', gap: spacing.sm },
+  cancelDeleteButton: { flex: 1, minHeight: 44, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border, borderRadius: 8, backgroundColor: colors.white },
+  cancelDeleteText: { color: colors.navy, fontSize: 14, fontWeight: '600' },
+  confirmDeleteButton: { flex: 1, minHeight: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 8, backgroundColor: '#A12626' },
+  confirmDeleteText: { color: colors.white, fontSize: 14, fontWeight: '700' },
+  deleteError: { color: '#A12626', fontSize: 13 },
   homeLink: { color: colors.navy, fontSize: 16, fontWeight: '600' },
   pressed: { opacity: 0.78 },
 });

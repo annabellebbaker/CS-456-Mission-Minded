@@ -33,13 +33,16 @@ export type JournalEntry = {
 
 export type MissionaryDetails = {
   id: string;
+  title: string;
   name: string;
   /** Used on chips, like "Sister Taylor". */
   shortName: string;
   firstName: string;
+  lastName: string;
   /** How the signed-in supporter is related, like "Brother" or "Cousin". */
   relationship: string;
   missionName: string;
+  missionLength: string;
   /** Key into mission-boundaries.json. Regenerate with `npm run boundaries`. */
   missionId: string;
   phase: MissionPhase;
@@ -73,10 +76,13 @@ type MissionaryRecord = Omit<MissionaryDetails, 'status'>;
 const missionaries: MissionaryRecord[] = [
   {
     id: 'jacob',
+    title: 'Elder',
     name: 'Elder Jacob Thompson-Whitaker',
     shortName: 'Elder Thompson-Whitaker',
     firstName: 'Jacob',
+    lastName: 'Thompson-Whitaker',
     relationship: 'Brother',
+    missionLength: '24 months',
     missionId: 'peru-lima-north',
     missionName: 'Peru Lima North Mission',
     phase: 'assigned',
@@ -119,10 +125,13 @@ const missionaries: MissionaryRecord[] = [
   },
   {
     id: 'ana',
+    title: 'Sister',
     name: 'Sister Ana Taylor',
     shortName: 'Sister Taylor',
     firstName: 'Ana',
+    lastName: 'Taylor',
     relationship: 'Cousin',
+    missionLength: '18 months',
     missionId: 'alaska-anchorage',
     missionName: 'Alaska Anchorage Mission',
     phase: 'serving',
@@ -164,10 +173,13 @@ const missionaries: MissionaryRecord[] = [
   },
   {
     id: 'david',
+    title: 'Elder',
     name: 'Elder David Kim',
     shortName: 'Elder Kim',
     firstName: 'David',
+    lastName: 'Kim',
     relationship: 'Friend',
+    missionLength: '24 months',
     missionId: 'japan-tokyo-south',
     missionName: 'Japan Tokyo South Mission',
     phase: 'mtc',
@@ -196,10 +208,13 @@ const missionaries: MissionaryRecord[] = [
   },
   {
     id: 'claire',
+    title: 'Sister',
     name: 'Sister Claire Miller',
     shortName: 'Sister Miller',
     firstName: 'Claire',
+    lastName: 'Miller',
     relationship: 'Friend',
+    missionLength: '18 months',
     missionId: 'canada-calgary',
     missionName: 'Canada Calgary Mission',
     phase: 'home',
@@ -250,41 +265,46 @@ export function getSampleMissionaries(): MissionaryDetails[] {
 }
 
 export type LinkMissionaryForm = {
-  name: string;
+  title: 'Elder' | 'Sister';
+  firstName: string;
+  lastName: string;
   relationship: string;
   missionName: string;
-  /** Parsed MTC report date, or null if unknown. */
-  mtcDate: Date | null;
+  /** Selected shared catalog document ID, or blank for a manually entered name. */
+  missionId?: string;
+  mtcDate: Date;
   missionLength: string;
 };
 
-/** Builds a missionary from the Link a Missionary form. Anything unknown is left for later. */
+/** Builds a missionary record with separate name fields and a formatted display name. */
 export function buildLinkedMissionary(form: LinkMissionaryForm, today = new Date()): MissionaryDetails {
-  const name = form.name.trim();
-  const words = name.split(/\s+/);
-  const hasTitle = /^(elder|sister)$/i.test(words[0] ?? '');
-  const firstName = (hasTitle ? words[1] : words[0]) ?? name;
-  const lastName = words.length > 1 ? words[words.length - 1] : '';
-  const mtcWhen = form.mtcDate?.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  const title = form.title;
+  const firstName = form.firstName.trim();
+  const lastName = form.lastName.trim();
+  const name = [title, firstName, lastName].join(' ');
+  const mtcWhen = form.mtcDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
 
   // Without a mission name the call hasn't come. After the MTC date, they're out serving.
   let phase: MissionPhase = 'assigned';
-  if (form.missionName.trim() && form.mtcDate && form.mtcDate <= today) phase = 'serving';
+  if (form.missionName.trim() && form.mtcDate <= today) phase = 'serving';
 
   return withStatus({
     id: `linked-${Date.now()}`,
+    title,
     name,
-    shortName: hasTitle && lastName ? `${words[0]} ${lastName}` : firstName,
+    shortName: `${title} ${lastName}`,
     firstName,
-    relationship: form.relationship.trim() || 'Supporter',
-    missionName: form.missionName.trim() || 'Mission not yet known',
-    missionId: '',
+    lastName,
+    relationship: form.relationship.trim(),
+    missionName: form.missionName.trim(),
+    missionLength: form.missionLength,
+    missionId: form.missionId?.trim() ?? '',
     phase,
     phaseSince: 'Just linked',
     language: '',
     moments: [
       { title: 'Enters the MTC', phase: 'mtc', when: mtcWhen, done: phase === 'serving' },
-      ...(form.missionLength
+      ...(form.missionLength && form.missionLength !== 'Not sure yet'
         ? [{ title: 'Returning home', phase: 'home' as const, when: `After ${form.missionLength}`, done: false }]
         : []),
     ],

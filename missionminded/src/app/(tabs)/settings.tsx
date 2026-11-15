@@ -1,22 +1,14 @@
-import { useState } from 'react';
 import { router } from 'expo-router';
-import { Platform, Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { AppText as Text } from '@/components/app-text';
 import { useAuth } from '@/data/auth';
 import { useMissionaries } from '@/data/missionaries';
 import { colors, spacing } from '@/theme/colors';
 
-// Toggles only change saved settings for now. No real notifications yet (see spec Open Decisions).
-const reminderSettings = ['Phase reminders', 'Prayer reminders'];
-
 export default function SettingsScreen() {
   const { user, signOut } = useAuth();
   const { missionaries } = useMissionaries();
-  const [settings, setSettings] = useState<Record<string, boolean>>({
-    'Phase reminders': true,
-    'Prayer reminders': false,
-  });
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -59,23 +51,6 @@ export default function SettingsScreen() {
           style={({ pressed }) => [styles.dashedButton, pressed && styles.pressed]}>
           <Text style={styles.dashedButtonText}>+ Link a missionary</Text>
         </Pressable>
-
-        <Text style={styles.eyebrow}>REMINDERS</Text>
-        <View style={styles.listCard}>
-          {reminderSettings.map((label, index) => (
-            <View key={label} style={[styles.listRow, index < reminderSettings.length - 1 && styles.divider]}>
-              <Text style={[styles.rowTitle, styles.rowCopy]}>{label}</Text>
-              <Switch
-                accessibilityLabel={label}
-                value={settings[label]}
-                onValueChange={(value) => setSettings((current) => ({ ...current, [label]: value }))}
-                trackColor={{ false: '#CCD5DE', true: colors.lightBlue }}
-                thumbColor={colors.white}
-                {...(Platform.OS === 'web' && { activeThumbColor: colors.navy })}
-              />
-            </View>
-          ))}
-        </View>
 
         <Pressable accessibilityRole="button" onPress={signOut} style={({ pressed }) => [styles.logOutButton, pressed && styles.pressed]}>
           <Text style={styles.logOutText}>Log out</Text>
