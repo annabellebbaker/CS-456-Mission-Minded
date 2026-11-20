@@ -1,4 +1,4 @@
-import { arrayUnion, collection, deleteDoc, doc, onSnapshot, setDoc, updateDoc } from 'firebase/firestore';
+import { arrayUnion, collection, deleteDoc, deleteField, doc, onSnapshot, setDoc, updateDoc } from 'firebase/firestore';
 import { deleteObject, getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 
@@ -178,7 +178,6 @@ function normalizeMissionary(id: string, value: unknown): MissionaryDetails {
       } satisfies JournalEntry] : [];
     })
     : [];
-  const isMainSupporter = raw.isMainSupporter !== false;
   return {
     id,
     title,
@@ -199,8 +198,6 @@ function normalizeMissionary(id: string, value: unknown): MissionaryDetails {
     growingTogether,
     ponderText: asString(raw.ponderText),
     ponderReference: asString(raw.ponderReference),
-    mainSupporter: asString(raw.mainSupporter, isMainSupporter ? 'You' : 'Main supporter'),
-    isMainSupporter,
     journal,
     missionDetails: {
       companion: typeof details.companion === 'string' ? details.companion : null,
@@ -298,7 +295,7 @@ export function MissionariesProvider({ children }: { children: ReactNode }) {
   }) => {
     if (!user) throw new Error('Sign in to post a journal update.');
     const missionary = missionaries.find((item) => item.id === missionaryId);
-    if (!missionary?.isMainSupporter) throw new Error('Only the main supporter can post journal updates.');
+    if (!missionary) throw new Error('Missionary not found.');
     const now = new Date();
     const date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
     const id = `${missionaryId}-journal-${now.getTime()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -376,8 +373,15 @@ export function MissionariesProvider({ children }: { children: ReactNode }) {
       moments,
     };
     if (user.id !== PREVIEW_USER_ID) {
-      await updateDoc(doc(getFirebaseFirestore(), 'users', user.id, 'missionaries', missionaryId),
-        omitUndefined(updated) as Record<string, unknown>);
+      await updateDoc(
+        doc(getFirebaseFirestore(), 'users', user.id, 'missionaries', missionaryId),
+        {
+          ...omitUndefined(updated) as Record<string, unknown>,
+          mainSupporter: deleteField(),
+          isMainFollower: deleteField(),
+          isMainSupporter: deleteField(),
+        },
+      );
     }
     setData((current) => current.userId === user.id
       ? { ...current, missionaries: current.missionaries.map((item) => item.id === missionaryId ? updated : item) }

@@ -20,7 +20,7 @@ export type GrowingTogetherItem = {
   description: string;
 };
 
-/** An update the main supporter posts to the Journal tab for other supporters to read. */
+/** An update a supporter posts to the Journal tab for others to read. */
 export type JournalEntry = {
   id: string;
   title: string;
@@ -59,10 +59,6 @@ export type MissionaryDetails = {
   growingTogether: GrowingTogetherItem[];
   ponderText: string;
   ponderReference: string;
-  /** Who posts Journal updates for this missionary, like "Michelle Taylor (Mom)". */
-  mainSupporter: string;
-  /** True when the signed-in user is the main supporter and can post to the Journal. */
-  isMainSupporter: boolean;
   journal: JournalEntry[];
   missionDetails: {
     companion: string | null;
@@ -106,8 +102,6 @@ const missionaries: MissionaryRecord[] = [
     ],
     ponderText: 'Wherefore, if ye have desires to serve God ye are called to the work.',
     ponderReference: 'Doctrine and Covenants 4:3',
-    mainSupporter: 'You',
-    isMainSupporter: true,
     journal: [
       {
         id: 'jacob-j1',
@@ -154,8 +148,6 @@ const missionaries: MissionaryRecord[] = [
     ],
     ponderText: 'Ye are the light of the world. A city that is set on an hill cannot be hid.',
     ponderReference: 'Matthew 5:14',
-    mainSupporter: 'Michelle Taylor (Mom)',
-    isMainSupporter: false,
     journal: [
       {
         id: 'ana-j1',
@@ -196,8 +188,6 @@ const missionaries: MissionaryRecord[] = [
     growingTogether: [{ id: 'pray-for-david', title: 'Pray for David', description: 'And for the people he will serve' }],
     ponderText: 'I will go before your face. I will be on your right hand and on your left.',
     ponderReference: 'Doctrine and Covenants 84:88',
-    mainSupporter: 'Grace Kim (Mom)',
-    isMainSupporter: false,
     journal: [
       {
         id: 'david-j1',
@@ -230,8 +220,6 @@ const missionaries: MissionaryRecord[] = [
     growingTogether: [{ id: 'pray-for-claire', title: 'Pray with Claire', description: 'As she finds ways to keep serving' }],
     ponderText: 'By small and simple things are great things brought to pass.',
     ponderReference: 'Alma 37:6',
-    mainSupporter: 'Robert Miller (Dad)',
-    isMainSupporter: false,
     journal: [],
     missionDetails: { companion: null, area: null, leaders: null, office: null, phone: null, email: null },
   },
@@ -315,9 +303,6 @@ export function buildLinkedMissionary(form: LinkMissionaryForm, today = new Date
     growingTogether: [{ id: 'pray', title: `Pray for ${firstName} as a family`, description: 'And for the people they serve' }],
     ponderText: 'By small and simple things are great things brought to pass.',
     ponderReference: 'Alma 37:6',
-    // Whoever links a missionary starts as their main supporter, so they can post to the Journal.
-    mainSupporter: 'You',
-    isMainSupporter: true,
     journal: [],
     missionDetails: { companion: null, area: null, leaders: null, office: null, phone: null, email: null },
   });

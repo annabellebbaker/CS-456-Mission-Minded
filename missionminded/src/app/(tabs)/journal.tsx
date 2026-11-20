@@ -28,7 +28,7 @@ function EntryCard({ entry }: { entry: JournalEntry }) {
   );
 }
 
-/** Only the main supporter sees this. Everyone else just reads the updates. */
+/** Any supporter can post a journal update. */
 function Composer({ missionary, onClose }: { missionary: MissionaryDetails; onClose: () => void }) {
   const { addJournalEntry } = useMissionaries();
   const [title, setTitle] = useState('');
@@ -189,12 +189,10 @@ export default function JournalScreen() {
           <Text style={styles.pageTitle}>Journal</Text>
           <MissionaryPicker />
           <Text style={styles.caption}>
-            {missionary.isMainSupporter
-              ? `You're ${missionary.firstName}'s main supporter. Your updates are shared with everyone supporting ${missionary.firstName}.`
-              : `Updates from ${missionary.mainSupporter}, ${missionary.firstName}'s main supporter.`}
+            Updates about {missionary.firstName} are shared with everyone supporting them.
           </Text>
 
-          {missionary.isMainSupporter && composerOpen && (
+          {composerOpen && (
             <Composer key={missionary.id} missionary={missionary} onClose={() => setComposerOpen(false)} />
           )}
 
@@ -207,7 +205,7 @@ export default function JournalScreen() {
           )}
         </View>
       </ScrollView>
-      {missionary.isMainSupporter && !composerOpen && (
+      {!composerOpen && (
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={`Create a journal post about ${missionary.firstName}`}
