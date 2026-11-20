@@ -4,7 +4,7 @@
     "slug": "missionminded",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/brand/icon.png",
+    "icon": "./assets/images/missionminded-smalllogo.png",
     "scheme": "missionminded",
     "userInterfaceStyle": "automatic",
     "owner": "cs-456-mission-minded",
@@ -14,7 +14,7 @@
       }
     },
     "ios": {
-      "icon": "./assets/images/brand/icon.png",
+      "icon": "./assets/images/missionminded-smalllogo.png",
       "bundleIdentifier": "com.anonymous.missionminded"
     },
     "android": {
@@ -36,7 +36,7 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Allow MissionMinded to access photos you choose for Journal posts.",
+          "photosPermission": "Allow MissionMinded to access photos you choose for updates.",
           "microphonePermission": false
         }
       ],
@@ -44,7 +44,7 @@
         "expo-splash-screen",
         {
           "backgroundColor": "#0A3255",
-          "image": "./assets/images/brand/splash-icon.png",
+          "image": "./assets/images/missionminded-smalllogo.png",
           "imageWidth": 160
         }
       ]

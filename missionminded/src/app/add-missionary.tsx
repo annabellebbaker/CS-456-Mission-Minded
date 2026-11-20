@@ -46,19 +46,19 @@ function duplicatedStandardMissionLength(duration: number, unit: DurationUnit | 
 
 // Default field error codes/messages. Edit these values to match the final product copy.
 const errorMessages: Record<FieldErrorKey | 'mtcDateInvalid' | 'save' | 'otherDuration18' | 'otherDuration24', string> = {
-  title: 'LM001: Choose Elder or Sister.',
-  firstName: 'LM002: Enter the missionary’s first name.',
-  lastName: 'LM003: Enter the missionary’s last name.',
-  relationship: 'LM004: Enter your relationship to the missionary.',
-  missionName: 'LM005: Select or enter a mission.',
-  mtcDate: 'LM006: Enter the MTC report date.',
-  missionLength: 'LM007: Choose a mission length.',
-  otherDuration: 'LM008: Enter a positive whole number for the custom length.',
+  title: 'AM001: Choose Elder or Sister.',
+  firstName: 'AM002: Enter the missionary’s first name.',
+  lastName: 'AM003: Enter the missionary’s last name.',
+  relationship: 'AM004: Enter your relationship to the missionary.',
+  missionName: 'AM005: Select or enter a mission.',
+  mtcDate: 'AM006: Enter the MTC report date.',
+  missionLength: 'AM007: Choose a mission length.',
+  otherDuration: 'AM008: Enter a positive whole number for the custom length.',
   otherDuration18: 'Choose 18 months',
   otherDuration24: 'Choose 24 months',
-  otherUnit: 'LM009: Choose days or months.',
-  mtcDateInvalid: 'LM010: Use a real date in MM / DD / YYYY format.',
-  save: 'LM011: Could not save. Check your connection and try again.',
+  otherUnit: 'AM009: Choose days or months.',
+  mtcDateInvalid: 'AM010: Use a real date in MM / DD / YYYY format.',
+  save: 'AM011: Could not save. Check your connection and try again.',
 };
 
 /** Reads "MM / DD / YYYY" (spaces optional). Returns null for blank, undefined for invalid. */
@@ -137,10 +137,10 @@ function DropdownField({
   );
 }
 
-export default function LinkMissionaryScreen() {
+export default function AddMissionaryScreen() {
   const { id: editIdParam } = useLocalSearchParams<{ id?: string }>();
   const editId = Array.isArray(editIdParam) ? editIdParam[0] : editIdParam;
-  const { linkMissionary, updateMissionary, getById, setSelectedId } = useMissionaries();
+  const { addMissionary, updateMissionary, getById, setSelectedId } = useMissionaries();
   const missionaryToEdit = editId ? getById(editId) : undefined;
   const initialMtcDate = missionaryToEdit?.moments.find((moment) => moment.phase === 'mtc')?.when ?? '';
   const parsedInitialMtcDate = new Date(initialMtcDate);
@@ -280,7 +280,7 @@ export default function LinkMissionaryScreen() {
         setSelectedId(editId);
         router.replace({ pathname: '/missionary/[id]', params: { id: editId } });
       } else {
-        const missionary = await linkMissionary(form);
+        const missionary = await addMissionary(form);
         setSelectedId(missionary.id);
         router.replace({ pathname: '/missionary/[id]', params: { id: missionary.id } });
       }
@@ -300,7 +300,7 @@ export default function LinkMissionaryScreen() {
           </Pressable>
 
           <View style={styles.heading}>
-            <Text style={styles.pageTitle}>{editId ? 'Edit missionary details' : 'Link a missionary'}</Text>
+            <Text style={styles.pageTitle}>{editId ? 'Edit missionary details' : 'Add a Missionary'}</Text>
             <Text style={styles.mutedText}>All fields marked with * are required.</Text>
           </View>
 
@@ -549,7 +549,7 @@ export default function LinkMissionaryScreen() {
             {!!saveError && <Text accessibilityRole="alert" style={styles.error}>{saveError}</Text>}
 
             <Pressable accessibilityRole="button" disabled={saving} onPress={() => void save()} style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed, saving && styles.disabled]}>
-              <Text style={styles.primaryButtonText}>{saving ? 'Saving…' : editId ? 'Save details' : 'Save & connect'}</Text>
+              <Text style={styles.primaryButtonText}>{saving ? 'Saving…' : editId ? 'Save details' : 'Add a Missionary'}</Text>
             </Pressable>
           </View>
         </View>

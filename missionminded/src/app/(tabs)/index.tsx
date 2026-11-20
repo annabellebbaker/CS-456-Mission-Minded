@@ -56,9 +56,9 @@ export default function HomeScreen() {
           </View>
           <Pressable
             accessibilityRole="button"
-            onPress={() => router.push('/link-missionary')}
-            style={({ pressed }) => [styles.linkButton, pressed && styles.missionaryCardPressed]}>
-            <Text style={styles.linkButtonText}>+ Link a missionary</Text>
+            onPress={() => router.push('/add-missionary')}
+            style={({ pressed }) => [styles.addButton, pressed && styles.missionaryCardPressed]}>
+            <Text style={styles.addButtonText}>+ Add a Missionary</Text>
           </Pressable>
         </View>
       </View>
@@ -142,7 +142,7 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontSize: 14,
   },
-  linkButton: {
+  addButton: {
     minHeight: 48,
     alignItems: 'center',
     justifyContent: 'center',
@@ -151,7 +151,7 @@ const styles = StyleSheet.create({
     borderColor: colors.navy,
     borderRadius: 12,
   },
-  linkButtonText: {
+  addButtonText: {
     color: colors.navy,
     fontSize: 14,
     fontWeight: '600',

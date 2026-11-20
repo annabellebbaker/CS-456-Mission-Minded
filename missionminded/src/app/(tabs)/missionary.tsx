@@ -17,9 +17,9 @@ export default function MissionaryTabScreen() {
       <ScrollView style={styles.screen} contentContainerStyle={styles.scrollContent}>
         <View style={styles.content}>
           <Text style={styles.pageTitle}>Missionary</Text>
-          <Text style={styles.caption}>Link a missionary to see their mission details.</Text>
-          <Pressable accessibilityRole="button" onPress={() => router.push('/link-missionary')} style={styles.dashedButton}>
-            <Text style={styles.dashedButtonText}>+ Link a missionary</Text>
+          <Text style={styles.caption}>Add a Missionary to see their mission details.</Text>
+          <Pressable accessibilityRole="button" onPress={() => router.push('/add-missionary')} style={styles.dashedButton}>
+            <Text style={styles.dashedButtonText}>+ Add a Missionary</Text>
           </Pressable>
         </View>
       </ScrollView>
@@ -59,7 +59,7 @@ export default function MissionaryTabScreen() {
           accessibilityRole="button"
           onPress={() => router.push({ pathname: '/missionary/[id]', params: { id: missionary.id } })}
           style={({ pressed }) => [styles.journeyButton, pressed && styles.pressed]}>
-          <Text style={styles.journeyButtonText}>View {missionary.firstName}&apos;s journey</Text>
+          <Text style={styles.journeyButtonText}>View {missionary.title} {missionary.lastName}&apos;s timeline</Text>
           <Text accessibilityElementsHidden style={styles.journeyButtonText}>›</Text>
         </Pressable>
       </View>

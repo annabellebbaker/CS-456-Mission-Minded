@@ -6,7 +6,7 @@ import { Image, Pressable, ScrollView, StyleSheet, View, type ScrollViewInstance
 import { AppText as Text, AppTextInput as TextInput } from '@/components/app-text';
 import { MissionaryPicker } from '@/components/missionary-picker';
 import { useMissionaries } from '@/data/missionaries';
-import type { JournalEntry, MissionaryDetails } from '@/data/repository';
+import type { MissionaryUpdate, MissionaryDetails } from '@/data/repository';
 import { colors, spacing } from '@/theme/colors';
 
 function formatDate(key: string) {
@@ -14,23 +14,23 @@ function formatDate(key: string) {
   return new Date(year, month - 1, day).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
 }
 
-function EntryCard({ entry }: { entry: JournalEntry }) {
+function UpdateCard({ update }: { update: MissionaryUpdate }) {
   return (
     <View style={styles.entryCard}>
-      <Text style={styles.entryDate}>{formatDate(entry.date)}</Text>
-      {!!entry.title && <Text style={styles.entryTitle}>{entry.title}</Text>}
-      {!!entry.imageUrl && (
-        <Image accessibilityLabel={entry.title || 'Journal photo'} source={{ uri: entry.imageUrl }} style={styles.entryImage} />
+      <Text style={styles.entryDate}>{formatDate(update.date)}</Text>
+      {!!update.title && <Text style={styles.entryTitle}>{update.title}</Text>}
+      {!!update.imageUrl && (
+        <Image accessibilityLabel={update.title || 'Update photo'} source={{ uri: update.imageUrl }} style={styles.entryImage} />
       )}
-      <Text style={styles.entryBody}>{entry.body}</Text>
-      <Text style={styles.entryAuthor}>Posted by {entry.author}</Text>
+      <Text style={styles.entryBody}>{update.body}</Text>
+      <Text style={styles.entryAuthor}>Posted by {update.author}</Text>
     </View>
   );
 }
 
-/** Any supporter can post a journal update. */
+/** Any supporter can post an update. */
 function Composer({ missionary, onClose }: { missionary: MissionaryDetails; onClose: () => void }) {
-  const { addJournalEntry } = useMissionaries();
+  const { addUpdate } = useMissionaries();
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [photo, setPhoto] = useState<ImagePicker.ImagePickerAsset | null>(null);
@@ -70,7 +70,7 @@ function Composer({ missionary, onClose }: { missionary: MissionaryDetails; onCl
     setSaving(true);
     setError('');
     try {
-      await addJournalEntry(missionary.id, {
+      await addUpdate(missionary.id, {
         title,
         body,
         ...(photo ? { photo: { uri: photo.uri, mimeType: photo.mimeType } } : {}),
@@ -108,7 +108,7 @@ function Composer({ missionary, onClose }: { missionary: MissionaryDetails; onCl
       />
       {photo ? (
         <View style={styles.photoPreviewWrap}>
-          <Image accessibilityLabel="Selected journal photo preview" source={{ uri: photo.uri }} style={styles.photoPreview} />
+          <Image accessibilityLabel="Selected update photo preview" source={{ uri: photo.uri }} style={styles.photoPreview} />
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Remove selected photo"
@@ -154,7 +154,7 @@ function Composer({ missionary, onClose }: { missionary: MissionaryDetails; onCl
   );
 }
 
-export default function JournalScreen() {
+export default function UpdatesScreen() {
   const { missionaries, getById, selectedId } = useMissionaries();
   const missionary = getById(selectedId) ?? missionaries[0];
   const [composerOpen, setComposerOpen] = useState(false);
@@ -165,10 +165,10 @@ export default function JournalScreen() {
       <View style={styles.screen}>
         <ScrollView style={styles.feed} contentContainerStyle={styles.scrollContent}>
           <View style={styles.content}>
-            <Text style={styles.pageTitle}>Journal</Text>
-            <Text style={styles.caption}>Link a missionary to follow their journal updates.</Text>
-            <Pressable accessibilityRole="button" onPress={() => router.push('/link-missionary')} style={styles.dashedButton}>
-              <Text style={styles.dashedButtonText}>+ Link a missionary</Text>
+            <Text style={styles.pageTitle}>Updates</Text>
+            <Text style={styles.caption}>Add a Missionary to follow their updates.</Text>
+            <Pressable accessibilityRole="button" onPress={() => router.push('/add-missionary')} style={styles.dashedButton}>
+              <Text style={styles.dashedButtonText}>+ Add a Missionary</Text>
             </Pressable>
           </View>
         </ScrollView>
@@ -176,7 +176,7 @@ export default function JournalScreen() {
     );
   }
 
-  const entries = [...missionary.journal].sort((a, b) => b.date.localeCompare(a.date));
+  const updates = [...missionary.updates].sort((a, b) => b.date.localeCompare(a.date));
 
   return (
     <View style={styles.screen}>
@@ -186,7 +186,7 @@ export default function JournalScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}>
         <View style={styles.content}>
-          <Text style={styles.pageTitle}>Journal</Text>
+          <Text style={styles.pageTitle}>Updates</Text>
           <MissionaryPicker />
           <Text style={styles.caption}>
             Updates about {missionary.firstName} are shared with everyone supporting them.
@@ -196,19 +196,19 @@ export default function JournalScreen() {
             <Composer key={missionary.id} missionary={missionary} onClose={() => setComposerOpen(false)} />
           )}
 
-          {entries.length === 0 ? (
+          {updates.length === 0 ? (
             <View style={styles.notice}>
               <Text style={styles.noticeText}>No updates yet.</Text>
             </View>
           ) : (
-            entries.map((entry) => <EntryCard key={entry.id} entry={entry} />)
+            updates.map((update) => <UpdateCard key={update.id} update={update} />)
           )}
         </View>
       </ScrollView>
       {!composerOpen && (
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={`Create a journal post about ${missionary.firstName}`}
+          accessibilityLabel={`Create an update about ${missionary.firstName}`}
           onPress={() => {
             scrollView.current?.scrollTo({ y: 0, animated: true });
             setComposerOpen(true);

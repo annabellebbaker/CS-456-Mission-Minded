@@ -20,7 +20,7 @@ function RootStack() {
         <Stack.Protected guard={!!user}>
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="missionary/[id]" />
-          <Stack.Screen name="link-missionary" />
+          <Stack.Screen name="add-missionary" />
         </Stack.Protected>
         <Stack.Protected guard={!user}>
           <Stack.Screen name="(auth)/login" />

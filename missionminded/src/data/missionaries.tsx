@@ -5,12 +5,12 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { PREVIEW_USER_ID, useAuth } from '@/data/auth';
 import { getFirebaseFirestore, getFirebaseStorage } from '@/data/firebase';
 import {
-  buildLinkedMissionary,
+  buildMissionary,
   getSampleMissionaries,
   getPhaseLabel,
-  type LinkMissionaryForm,
+  type MissionaryForm,
   missionPhases,
-  type JournalEntry,
+  type MissionaryUpdate,
   type GrowingTogetherItem,
   type PhaseMoment,
   type MissionPhase,
@@ -20,13 +20,13 @@ import {
 type MissionariesContextValue = {
   missionaries: MissionaryDetails[];
   getById: (id: string) => MissionaryDetails | undefined;
-  linkMissionary: (form: LinkMissionaryForm) => Promise<MissionaryDetails>;
-  addJournalEntry: (missionaryId: string, entry: {
+  addMissionary: (form: MissionaryForm) => Promise<MissionaryDetails>;
+  addUpdate: (missionaryId: string, update: {
     title: string;
     body: string;
     photo?: { uri: string; mimeType?: string | null };
   }) => Promise<void>;
-  updateMissionary: (missionaryId: string, form: LinkMissionaryForm) => Promise<void>;
+  updateMissionary: (missionaryId: string, form: MissionaryForm) => Promise<void>;
   deleteMissionary: (missionaryId: string) => Promise<void>;
   updatePhaseMomentDate: (missionaryId: string, phase: MissionPhase, title: string, date: string) => Promise<void>;
   checked: Record<string, boolean>;
@@ -162,22 +162,25 @@ function normalizeMissionary(id: string, value: unknown): MissionaryDetails {
       } satisfies GrowingTogetherItem] : [];
     })
     : [];
-  const journal = Array.isArray(raw.journal)
-    ? raw.journal.flatMap((entry, index) => {
-      const item = asRecord(entry);
-      const body = asString(item.body).trim();
-      const date = asString(item.date);
-      return body && date ? [{
-        id: asString(item.id, `${id}-journal-${index}`),
-        title: asString(item.title).trim(),
-        body,
-        date,
-        author: asString(item.author, 'Main supporter'),
-        ...(asString(item.imageUrl) ? { imageUrl: asString(item.imageUrl) } : {}),
-        ...(asString(item.imagePath) ? { imagePath: asString(item.imagePath) } : {}),
-      } satisfies JournalEntry] : [];
-    })
-    : [];
+  const rawUpdates = Array.isArray(raw.updates)
+    ? raw.updates
+    : Array.isArray(raw.journal)
+      ? raw.journal
+      : [];
+  const updates = rawUpdates.flatMap((entry, index) => {
+    const item = asRecord(entry);
+    const body = asString(item.body).trim();
+    const date = asString(item.date);
+    return body && date ? [{
+      id: asString(item.id, `${id}-update-${index}`),
+      title: asString(item.title).trim(),
+      body,
+      date,
+      author: asString(item.author, 'Supporter'),
+      ...(asString(item.imageUrl) ? { imageUrl: asString(item.imageUrl) } : {}),
+      ...(asString(item.imagePath) ? { imagePath: asString(item.imagePath) } : {}),
+    } satisfies MissionaryUpdate] : [];
+  });
   return {
     id,
     title,
@@ -198,7 +201,7 @@ function normalizeMissionary(id: string, value: unknown): MissionaryDetails {
     growingTogether,
     ponderText: asString(raw.ponderText),
     ponderReference: asString(raw.ponderReference),
-    journal,
+    updates,
     missionDetails: {
       companion: typeof details.companion === 'string' ? details.companion : null,
       area: typeof details.area === 'string' ? details.area : null,
@@ -273,9 +276,9 @@ export function MissionariesProvider({ children }: { children: ReactNode }) {
     };
   }, [user]);
 
-  const linkMissionary = useCallback(async (form: LinkMissionaryForm) => {
-    if (!user) throw new Error('Sign in to link a missionary.');
-    const missionary = buildLinkedMissionary(form);
+  const addMissionary = useCallback(async (form: MissionaryForm) => {
+    if (!user) throw new Error('Sign in to add a missionary.');
+    const missionary = buildMissionary(form);
     if (user.id === PREVIEW_USER_ID) {
       setData((current) => ({ ...current, missionaries: [...current.missionaries, missionary] }));
       return missionary;
@@ -288,26 +291,26 @@ export function MissionariesProvider({ children }: { children: ReactNode }) {
     return missionary;
   }, [user]);
 
-  const addJournalEntry = useCallback(async (missionaryId: string, entry: {
+  const addUpdate = useCallback(async (missionaryId: string, update: {
     title: string;
     body: string;
     photo?: { uri: string; mimeType?: string | null };
   }) => {
-    if (!user) throw new Error('Sign in to post a journal update.');
+    if (!user) throw new Error('Sign in to post an update.');
     const missionary = missionaries.find((item) => item.id === missionaryId);
     if (!missionary) throw new Error('Missionary not found.');
     const now = new Date();
     const date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-    const id = `${missionaryId}-journal-${now.getTime()}-${Math.random().toString(36).slice(2, 8)}`;
-    const mimeType = entry.photo?.mimeType?.startsWith('image/') ? entry.photo.mimeType : 'image/jpeg';
+    const id = `${missionaryId}-update-${now.getTime()}-${Math.random().toString(36).slice(2, 8)}`;
+    const mimeType = update.photo?.mimeType?.startsWith('image/') ? update.photo.mimeType : 'image/jpeg';
     let photoRef: ReturnType<typeof ref> | null = null;
     let imageUrl: string | undefined;
     let imagePath: string | undefined;
 
-    if (entry.photo && user.id !== PREVIEW_USER_ID) {
-      imagePath = `missionJournals/${user.id}/${missionaryId}/${id}/photo.${getImageExtension(mimeType)}`;
+    if (update.photo && user.id !== PREVIEW_USER_ID) {
+      imagePath = `missionUpdates/${user.id}/${missionaryId}/${id}/photo.${getImageExtension(mimeType)}`;
       photoRef = ref(getFirebaseStorage(), imagePath);
-      const photoBlob = await blobFromUri(entry.photo.uri);
+      const photoBlob = await blobFromUri(update.photo.uri);
       try {
         await uploadBytes(photoRef, photoBlob, { contentType: mimeType });
         imageUrl = await getDownloadURL(photoRef);
@@ -315,14 +318,14 @@ export function MissionariesProvider({ children }: { children: ReactNode }) {
         await deleteObject(photoRef).catch(() => undefined);
         throw error;
       }
-    } else if (entry.photo) {
-      imageUrl = entry.photo.uri;
+    } else if (update.photo) {
+      imageUrl = update.photo.uri;
     }
 
-    const item: JournalEntry = {
+    const item: MissionaryUpdate = {
       id,
-      title: entry.title.trim(),
-      body: entry.body.trim(),
+      title: update.title.trim(),
+      body: update.body.trim(),
       date,
       author: user.name || 'You',
       ...(imageUrl ? { imageUrl } : {}),
@@ -332,21 +335,24 @@ export function MissionariesProvider({ children }: { children: ReactNode }) {
       setData((current) => ({
         ...current,
         missionaries: current.missionaries.map((existing) => existing.id === missionaryId
-          ? { ...existing, journal: [...existing.journal, item] }
+          ? { ...existing, updates: [...existing.updates, item] }
           : existing),
       }));
       return;
     }
     const reference = doc(getFirebaseFirestore(), 'users', user.id, 'missionaries', missionaryId);
     try {
-      await updateDoc(reference, { journal: arrayUnion(item) });
+      await updateDoc(reference, {
+        updates: arrayUnion(...missionary.updates, item),
+        journal: deleteField(),
+      });
     } catch (error) {
       if (photoRef) await deleteObject(photoRef).catch(() => undefined);
       throw error;
     }
   }, [missionaries, user]);
 
-  const updateMissionary = useCallback(async (missionaryId: string, form: LinkMissionaryForm) => {
+  const updateMissionary = useCallback(async (missionaryId: string, form: MissionaryForm) => {
     if (!user) throw new Error('Sign in to update a missionary.');
     const existing = missionaries.find((item) => item.id === missionaryId);
     if (!existing) throw new Error('Missionary not found.');
@@ -377,6 +383,7 @@ export function MissionariesProvider({ children }: { children: ReactNode }) {
         doc(getFirebaseFirestore(), 'users', user.id, 'missionaries', missionaryId),
         {
           ...omitUndefined(updated) as Record<string, unknown>,
+          journal: deleteField(),
           mainSupporter: deleteField(),
           isMainFollower: deleteField(),
           isMainSupporter: deleteField(),
@@ -444,8 +451,8 @@ export function MissionariesProvider({ children }: { children: ReactNode }) {
   const value: MissionariesContextValue = {
     missionaries,
     getById: (id) => missionaries.find((missionary) => missionary.id === id),
-    linkMissionary,
-    addJournalEntry,
+    addMissionary,
+    addUpdate,
     updateMissionary,
     deleteMissionary,
     updatePhaseMomentDate,

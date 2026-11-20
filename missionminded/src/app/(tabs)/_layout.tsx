@@ -54,9 +54,9 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="journal"
+        name="updates"
         options={{
-          title: 'Journal',
+          title: 'Updates',
           tabBarIcon: tabIcon({ ios: 'book.closed.fill', android: 'menu_book', web: 'menu_book' }),
         }}
       />

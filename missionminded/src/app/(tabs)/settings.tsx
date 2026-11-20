@@ -47,9 +47,9 @@ export default function SettingsScreen() {
         </View>
         <Pressable
           accessibilityRole="button"
-          onPress={() => router.push('/link-missionary')}
+          onPress={() => router.push('/add-missionary')}
           style={({ pressed }) => [styles.dashedButton, pressed && styles.pressed]}>
-          <Text style={styles.dashedButtonText}>+ Link a missionary</Text>
+          <Text style={styles.dashedButtonText}>+ Add a Missionary</Text>
         </Pressable>
 
         <Pressable accessibilityRole="button" onPress={signOut} style={({ pressed }) => [styles.logOutButton, pressed && styles.pressed]}>

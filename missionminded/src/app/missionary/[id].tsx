@@ -4,33 +4,14 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { AppText as Text, AppTextInput as TextInput } from '@/components/app-text';
 import { MissionDetails } from '@/components/mission-details';
-import { PhaseTracker } from '@/components/phase-tracker';
 import { useMissionaries } from '@/data/missionaries';
 import {
   getPhaseLabel,
   missionPhases,
-  phaseInfo,
-  type MissionaryDetails,
   type PhaseMoment,
   type MissionPhase,
 } from '@/data/repository';
 import { colors, spacing } from '@/theme/colors';
-
-/** The headline card: which phase the missionary is in right now. */
-function PhaseCard({ missionary }: { missionary: MissionaryDetails }) {
-  const info = phaseInfo[missionary.phase];
-
-  return (
-    <View style={styles.phaseCard}>
-      <Text style={styles.phaseEyebrow}>RIGHT NOW</Text>
-      <Text style={styles.phaseLabel}>{getPhaseLabel(missionary.phase, missionary.phase)}</Text>
-      <Text style={styles.phaseSummary}>{info.summary}</Text>
-      <Text style={styles.phaseSince}>{missionary.phaseSince}</Text>
-      <View style={styles.phaseDivider} />
-      <PhaseTracker phase={missionary.phase} onDark />
-    </View>
-  );
-}
 
 function PhaseMomentRow({
   moment,
@@ -192,10 +173,8 @@ export default function MissionaryScreen() {
           </View>
         </View>
 
-        <PhaseCard missionary={missionary} />
-
         <View style={styles.sectionCard}>
-          <Text style={styles.sectionEyebrow}>MOMENTS ALONG THE WAY</Text>
+          <Text style={styles.sectionEyebrow}>{`${missionary.title} ${missionary.lastName}'s Timeline`}</Text>
           <PhaseMomentList
             moments={missionary.moments}
             currentPhase={missionary.phase}
@@ -217,7 +196,7 @@ export default function MissionaryScreen() {
         <View style={styles.recordActions}>
           <Pressable
             accessibilityRole="button"
-            onPress={() => router.push({ pathname: '/link-missionary', params: { id: missionary.id } })}
+            onPress={() => router.push({ pathname: '/add-missionary', params: { id: missionary.id } })}
             style={({ pressed }) => [styles.editDetailsButton, pressed && styles.pressed]}>
             <Text style={styles.editDetailsButtonText}>Edit details</Text>
           </Pressable>
@@ -317,12 +296,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
   },
   sectionEyebrow: { color: colors.textSecondary, fontSize: 12, fontWeight: '700', letterSpacing: 0.8 },
-  phaseCard: { gap: spacing.xs, padding: spacing.lg, borderRadius: 16, backgroundColor: colors.navy },
-  phaseEyebrow: { color: '#9FB6CC', fontSize: 12, fontWeight: '700', letterSpacing: 0.8 },
-  phaseLabel: { color: colors.white, fontSize: 30, fontWeight: '800' },
-  phaseSummary: { color: colors.white, fontSize: 15, lineHeight: 21 },
-  phaseSince: { color: '#9FB6CC', fontSize: 13 },
-  phaseDivider: { height: 1, marginVertical: spacing.md, backgroundColor: 'rgba(255,255,255,0.18)' },
   momentGroups: { gap: spacing.lg },
   momentGroup: { gap: spacing.sm },
   momentItem: { gap: spacing.xs },

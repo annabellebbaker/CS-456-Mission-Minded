@@ -20,8 +20,8 @@ export type GrowingTogetherItem = {
   description: string;
 };
 
-/** An update a supporter posts to the Journal tab for others to read. */
-export type JournalEntry = {
+/** An update a supporter posts for others to read. */
+export type MissionaryUpdate = {
   id: string;
   title: string;
   /** The post caption. */
@@ -59,7 +59,7 @@ export type MissionaryDetails = {
   growingTogether: GrowingTogetherItem[];
   ponderText: string;
   ponderReference: string;
-  journal: JournalEntry[];
+  updates: MissionaryUpdate[];
   missionDetails: {
     companion: string | null;
     area: string | null;
@@ -102,7 +102,7 @@ const missionaries: MissionaryRecord[] = [
     ],
     ponderText: 'Wherefore, if ye have desires to serve God ye are called to the work.',
     ponderReference: 'Doctrine and Covenants 4:3',
-    journal: [
+    updates: [
       {
         id: 'jacob-j1',
         title: 'Mission call opened!',
@@ -148,7 +148,7 @@ const missionaries: MissionaryRecord[] = [
     ],
     ponderText: 'Ye are the light of the world. A city that is set on an hill cannot be hid.',
     ponderReference: 'Matthew 5:14',
-    journal: [
+    updates: [
       {
         id: 'ana-j1',
         title: 'Settling into Wasilla',
@@ -188,7 +188,7 @@ const missionaries: MissionaryRecord[] = [
     growingTogether: [{ id: 'pray-for-david', title: 'Pray for David', description: 'And for the people he will serve' }],
     ponderText: 'I will go before your face. I will be on your right hand and on your left.',
     ponderReference: 'Doctrine and Covenants 84:88',
-    journal: [
+    updates: [
       {
         id: 'david-j1',
         title: 'First week at the MTC',
@@ -220,7 +220,7 @@ const missionaries: MissionaryRecord[] = [
     growingTogether: [{ id: 'pray-for-claire', title: 'Pray with Claire', description: 'As she finds ways to keep serving' }],
     ponderText: 'By small and simple things are great things brought to pass.',
     ponderReference: 'Alma 37:6',
-    journal: [],
+    updates: [],
     missionDetails: { companion: null, area: null, leaders: null, office: null, phone: null, email: null },
   },
 ];
@@ -249,13 +249,13 @@ export function getSampleMissionaries(): MissionaryDetails[] {
       ...missionary,
       moments: [...missionary.moments],
       growingTogether: [...missionary.growingTogether],
-      journal: [...missionary.journal],
+      updates: [...missionary.updates],
       missionDetails: { ...missionary.missionDetails },
     }),
   );
 }
 
-export type LinkMissionaryForm = {
+export type MissionaryForm = {
   title: 'Elder' | 'Sister';
   firstName: string;
   lastName: string;
@@ -268,7 +268,7 @@ export type LinkMissionaryForm = {
 };
 
 /** Builds a missionary record with separate name fields and a formatted display name. */
-export function buildLinkedMissionary(form: LinkMissionaryForm, today = new Date()): MissionaryDetails {
+export function buildMissionary(form: MissionaryForm, today = new Date()): MissionaryDetails {
   const title = form.title;
   const firstName = form.firstName.trim();
   const lastName = form.lastName.trim();
@@ -303,7 +303,7 @@ export function buildLinkedMissionary(form: LinkMissionaryForm, today = new Date
     growingTogether: [{ id: 'pray', title: `Pray for ${firstName} as a family`, description: 'And for the people they serve' }],
     ponderText: 'By small and simple things are great things brought to pass.',
     ponderReference: 'Alma 37:6',
-    journal: [],
+    updates: [],
     missionDetails: { companion: null, area: null, leaders: null, office: null, phone: null, email: null },
   });
 }
