@@ -6,6 +6,7 @@ import { PREVIEW_USER_ID, useAuth } from '@/data/auth';
 import { getFirebaseFirestore, getFirebaseStorage } from '@/data/firebase';
 import {
   buildMissionary,
+  ensureCoreTimelineMoments,
   getSampleMissionaries,
   getPhaseLabel,
   type MissionaryForm,
@@ -28,7 +29,13 @@ type MissionariesContextValue = {
   }) => Promise<void>;
   updateMissionary: (missionaryId: string, form: MissionaryForm) => Promise<void>;
   deleteMissionary: (missionaryId: string) => Promise<void>;
-  updatePhaseMomentDate: (missionaryId: string, phase: MissionPhase, title: string, date: string) => Promise<void>;
+  updatePhaseMoment: (missionaryId: string, phase: MissionPhase, title: string, details: {
+    date: string;
+    districtNumber?: string;
+    companionName?: string;
+    areaName?: string;
+  }, momentId?: string) => Promise<void>;
+  addPhaseMoment: (missionaryId: string, moment: PhaseMoment) => Promise<void>;
   checked: Record<string, boolean>;
   toggleChecked: (key: string) => void;
   selectedId: string;
@@ -96,7 +103,6 @@ function normalizePhase(value: unknown, currentStage: unknown): MissionPhase {
   const stage = asString(currentStage).trim().toLowerCase();
   const stagePhases: Record<string, MissionPhase> = {
     assigned: 'assigned',
-    preparing: 'assigned',
     'pre-mission': 'assigned',
     called: 'assigned',
     mtc: 'mtc',
@@ -108,7 +114,7 @@ function normalizePhase(value: unknown, currentStage: unknown): MissionPhase {
 
 function normalizeMomentPhase(value: unknown, fallback: MissionPhase): MissionPhase {
   if (isMissionPhase(value)) return value;
-  if (value === 'preparing' || value === 'pre-mission' || value === 'called') return 'assigned';
+  if (value === 'pre-mission' || value === 'called') return 'assigned';
   return fallback;
 }
 
@@ -120,15 +126,19 @@ function normalizeMoments(value: unknown, legacyJourney: unknown, legacyMoments:
       : Array.isArray(legacyJourney)
         ? legacyJourney
         : [];
-  return source.flatMap((entry) => {
+  return source.flatMap((entry, index) => {
     const item = asRecord(entry);
     const title = asString(item.title).trim();
     if (!title) return [];
     const when = asString(item.when, asString(item.date));
     return [{
+      id: asString(item.id).trim() || `${phase}-${index}`,
       title,
       phase: normalizeMomentPhase(item.phase, phase),
       ...(when ? { when } : {}),
+      ...(asString(item.districtNumber).trim() ? { districtNumber: asString(item.districtNumber).trim() } : {}),
+      ...(asString(item.companionName).trim() ? { companionName: asString(item.companionName).trim() } : {}),
+      ...(asString(item.areaName).trim() ? { areaName: asString(item.areaName).trim() } : {}),
       done: item.done === true || item.state === 'complete',
     }];
   });
@@ -150,7 +160,12 @@ function normalizeMissionary(id: string, value: unknown): MissionaryDetails {
   const phase = normalizePhase(raw.phase, raw.currentStage);
   const details = asRecord(raw.missionDetails);
 
-  const moments = normalizeMoments(raw.moments, raw.journey, raw['milestones'], phase);
+  const missionLength = asString(raw.missionLength);
+  const moments = ensureCoreTimelineMoments(
+    normalizeMoments(raw.moments, raw.journey, raw['milestones'], phase),
+    missionLength,
+    phase,
+  );
   const growingTogether = Array.isArray(raw.growingTogether)
     ? raw.growingTogether.flatMap((entry, index) => {
       const item = asRecord(entry);
@@ -190,11 +205,13 @@ function normalizeMissionary(id: string, value: unknown): MissionaryDetails {
     lastName,
     relationship: asString(raw.relationship, 'Supporter'),
     missionName: asString(raw.missionName, 'Mission not yet known'),
-    missionLength: asString(raw.missionLength),
+    missionLength,
     missionId: asString(raw.missionId),
     phase,
     phaseSince: asString(raw.phaseSince),
-    status: asString(raw.status, getPhaseLabel(phase, phase)),
+    status: phase === 'serving' && typeof details.area === 'string' && details.area.trim()
+      ? `Serving in ${details.area.trim()}`
+      : getPhaseLabel(phase, phase),
     language: asString(raw.language),
     moments,
     growingTogetherIntro: asString(raw.growingTogetherIntro),
@@ -356,15 +373,14 @@ export function MissionariesProvider({ children }: { children: ReactNode }) {
     if (!user) throw new Error('Sign in to update a missionary.');
     const existing = missionaries.find((item) => item.id === missionaryId);
     if (!existing) throw new Error('Missionary not found.');
-    const mtcWhen = form.mtcDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
     const name = [form.title, form.firstName.trim(), form.lastName.trim()].join(' ');
-    const moments = existing.moments.map((moment) => {
-      if (moment.phase === 'mtc' && /MTC/i.test(moment.title)) return { ...moment, when: mtcWhen };
-      if (moment.phase === 'home' && /return/i.test(moment.title)) {
-        return { ...moment, when: `After ${form.missionLength}` };
-      }
-      return moment;
-    });
+    const moments = ensureCoreTimelineMoments(
+      existing.moments,
+      form.missionLength,
+      existing.phase,
+      form.assignedDate,
+      form.mtcDate,
+    );
     const updated: MissionaryDetails = {
       ...existing,
       title: form.title,
@@ -405,16 +421,28 @@ export function MissionariesProvider({ children }: { children: ReactNode }) {
       : current);
   }, [user]);
 
-  const updatePhaseMomentDate = useCallback(async (missionaryId: string, phase: MissionPhase, title: string, date: string) => {
+  const updatePhaseMoment = useCallback(async (missionaryId: string, phase: MissionPhase, title: string, details: {
+    date: string;
+    districtNumber?: string;
+    companionName?: string;
+    areaName?: string;
+  }, momentId?: string) => {
     if (!user) throw new Error('Sign in to update a phase moment.');
     const current = missionaries.find((missionary) => missionary.id === missionaryId);
     if (!current) throw new Error('Missionary not found.');
-    const trimmedDate = date.trim();
+    const trimmedDate = details.date.trim();
     const moments = current.moments.map((moment) => {
-      if (moment.phase !== phase || moment.title !== title) return moment;
-      return trimmedDate
-        ? { ...moment, when: trimmedDate }
-        : { title: moment.title, phase: moment.phase, done: moment.done };
+      const matches = momentId
+        ? moment.id === momentId
+        : moment.phase === phase && moment.title === title;
+      if (!matches) return moment;
+      return {
+        ...moment,
+        when: trimmedDate,
+        ...(details.districtNumber !== undefined ? { districtNumber: details.districtNumber.trim() } : {}),
+        ...(details.companionName !== undefined ? { companionName: details.companionName.trim() } : {}),
+        ...(details.areaName !== undefined ? { areaName: details.areaName.trim() } : {}),
+      };
     });
 
     if (user.id !== PREVIEW_USER_ID) {
@@ -424,6 +452,34 @@ export function MissionariesProvider({ children }: { children: ReactNode }) {
       );
     }
 
+    setData((currentData) => currentData.userId === user.id
+      ? {
+        ...currentData,
+        missionaries: currentData.missionaries.map((missionary) => missionary.id === missionaryId
+          ? { ...missionary, moments }
+          : missionary),
+      }
+      : currentData);
+  }, [missionaries, user]);
+
+  const addPhaseMoment = useCallback(async (missionaryId: string, moment: PhaseMoment) => {
+    if (!user) throw new Error('Sign in to add a timeline event.');
+    const current = missionaries.find((item) => item.id === missionaryId);
+    if (!current) throw new Error('Missionary not found.');
+    const nextMoment = {
+      ...moment,
+      id: moment.id || `event-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      title: moment.title.trim(),
+      ...(moment.when?.trim() ? { when: moment.when.trim() } : {}),
+      done: moment.done === true,
+    };
+    const moments = [...current.moments, nextMoment];
+    if (user.id !== PREVIEW_USER_ID) {
+      await updateDoc(
+        doc(getFirebaseFirestore(), 'users', user.id, 'missionaries', missionaryId),
+        { moments },
+      );
+    }
     setData((currentData) => currentData.userId === user.id
       ? {
         ...currentData,
@@ -455,7 +511,8 @@ export function MissionariesProvider({ children }: { children: ReactNode }) {
     addUpdate,
     updateMissionary,
     deleteMissionary,
-    updatePhaseMomentDate,
+    updatePhaseMoment,
+    addPhaseMoment,
     checked,
     toggleChecked,
     selectedId,

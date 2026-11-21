@@ -28,6 +28,7 @@ type FieldErrorKey =
   | 'lastName'
   | 'relationship'
   | 'missionName'
+  | 'assignedDate'
   | 'mtcDate'
   | 'missionLength'
   | 'otherDuration'
@@ -45,12 +46,14 @@ function duplicatedStandardMissionLength(duration: number, unit: DurationUnit | 
 }
 
 // Default field error codes/messages. Edit these values to match the final product copy.
-const errorMessages: Record<FieldErrorKey | 'mtcDateInvalid' | 'save' | 'otherDuration18' | 'otherDuration24', string> = {
+const errorMessages: Record<FieldErrorKey | 'assignedDateInvalid' | 'mtcDateInvalid' | 'save' | 'otherDuration18' | 'otherDuration24', string> = {
   title: 'AM001: Choose Elder or Sister.',
   firstName: 'AM002: Enter the missionary’s first name.',
   lastName: 'AM003: Enter the missionary’s last name.',
   relationship: 'AM004: Enter your relationship to the missionary.',
   missionName: 'AM005: Select or enter a mission.',
+  assignedDate: 'Enter the mission assignment date.',
+  assignedDateInvalid: 'Use a real date in MM/DD/YYYY format.',
   mtcDate: 'AM006: Enter the MTC report date.',
   missionLength: 'AM007: Choose a mission length.',
   otherDuration: 'AM008: Enter a positive whole number for the custom length.',
@@ -142,6 +145,12 @@ export default function AddMissionaryScreen() {
   const editId = Array.isArray(editIdParam) ? editIdParam[0] : editIdParam;
   const { addMissionary, updateMissionary, getById, setSelectedId } = useMissionaries();
   const missionaryToEdit = editId ? getById(editId) : undefined;
+  const initialAssignedMoment = missionaryToEdit?.moments.find((moment) => moment.id === 'core-assigned')
+    ?? missionaryToEdit?.moments.find((moment) => moment.phase === 'assigned' && /mission call received|assigned/i.test(moment.title));
+  const parsedInitialAssignedDate = parseDate(initialAssignedMoment?.when ?? '');
+  const initialAssignedDateInput = parsedInitialAssignedDate instanceof Date
+    ? `${String(parsedInitialAssignedDate.getMonth() + 1).padStart(2, '0')}/${String(parsedInitialAssignedDate.getDate()).padStart(2, '0')}/${parsedInitialAssignedDate.getFullYear()}`
+    : '';
   const initialMtcDate = missionaryToEdit?.moments.find((moment) => moment.phase === 'mtc')?.when ?? '';
   const parsedInitialMtcDate = new Date(initialMtcDate);
   const initialMtcDateInput = Number.isNaN(parsedInitialMtcDate.getTime())
@@ -156,6 +165,7 @@ export default function AddMissionaryScreen() {
   );
   const [missionName, setMissionName] = useState(missionaryToEdit?.missionName ?? '');
   const [selectedMissionId, setSelectedMissionId] = useState(missionaryToEdit?.missionId ?? '');
+  const [assignedDate, setAssignedDate] = useState(initialAssignedDateInput);
   const [mtcDate, setMtcDate] = useState(initialMtcDateInput);
   const [pickerDate, setPickerDate] = useState(() => {
     const parsed = parseDate(initialMtcDateInput);
@@ -237,6 +247,10 @@ export default function AddMissionaryScreen() {
     if (!relationship.trim()) nextErrors.relationship = errorMessages.relationship;
     if (!missionName.trim()) nextErrors.missionName = errorMessages.missionName;
 
+    const parsedAssignedDate = parseDate(assignedDate);
+    if (!assignedDate.trim()) nextErrors.assignedDate = errorMessages.assignedDate;
+    else if (!parsedAssignedDate) nextErrors.assignedDate = errorMessages.assignedDateInvalid;
+
     const parsedDate = parseDate(mtcDate);
     if (!mtcDate.trim()) nextErrors.mtcDate = errorMessages.mtcDate;
     else if (!parsedDate) nextErrors.mtcDate = errorMessages.mtcDateInvalid;
@@ -255,7 +269,7 @@ export default function AddMissionaryScreen() {
 
     setErrors(nextErrors);
     setSaveError('');
-    if (Object.keys(nextErrors).length > 0 || !parsedDate) {
+    if (Object.keys(nextErrors).length > 0 || !parsedDate || !parsedAssignedDate) {
       return;
     }
 
@@ -272,6 +286,7 @@ export default function AddMissionaryScreen() {
         relationship,
         missionName,
         missionId: selectedMissionId,
+        assignedDate: parsedAssignedDate,
         mtcDate: parsedDate,
         missionLength: normalizedMissionLength,
       };
@@ -305,6 +320,16 @@ export default function AddMissionaryScreen() {
           </View>
 
           <View style={styles.card}>
+            <View style={styles.photoField}>
+              <Text style={styles.label}>Missionary photo (optional)</Text>
+              <View style={styles.photoPlaceholder}>
+                <Text style={styles.photoPlaceholderText}>Photo preview</Text>
+              </View>
+              <View style={[styles.photoButton, styles.disabled]}>
+                <Text style={styles.photoButtonText}>Photo upload coming soon</Text>
+              </View>
+              <Text style={styles.hint}>Photo upload setup will be added later.</Text>
+            </View>
             <DropdownField
               label="Title *"
               value={title}
@@ -391,6 +416,18 @@ export default function AddMissionaryScreen() {
                     : 'No matching mission. You can enter the name manually.'}
               </Text>
             )}
+            <Field
+              label="Mission assigned date *"
+              value={assignedDate}
+              onChangeText={(value) => {
+                setAssignedDate(value);
+                clearErrors('assignedDate');
+              }}
+              placeholder="MM/DD/YYYY"
+              hint="Date they received their mission call."
+              keyboardType="numbers-and-punctuation"
+              error={errors.assignedDate}
+            />
             <View style={styles.field}>
               <Text style={styles.label}>MTC report date *</Text>
               {Platform.OS === 'web' ? (
@@ -576,6 +613,30 @@ const styles = StyleSheet.create({
   pageTitle: { color: colors.navy, fontSize: 24, fontWeight: '700' },
   mutedText: { color: colors.textSecondary, fontSize: 14, lineHeight: 20 },
   card: { gap: spacing.lg, padding: spacing.lg, borderWidth: 1, borderColor: '#D6DEE6', borderRadius: 16 },
+  photoField: { gap: spacing.sm },
+  photoPlaceholder: {
+    width: 144,
+    height: 144,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: '#AEB9C4',
+    borderRadius: 12,
+    backgroundColor: '#F4F6F8',
+  },
+  photoPlaceholderText: { color: colors.textSecondary, fontSize: 12 },
+  photoButton: {
+    minHeight: 46,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.navy,
+    borderRadius: 9,
+    backgroundColor: colors.white,
+  },
+  photoButtonText: { color: colors.navy, fontSize: 14, fontWeight: '700' },
   field: { gap: spacing.xs },
   label: { color: colors.navy, fontSize: 13, fontWeight: '700' },
   textInput: {

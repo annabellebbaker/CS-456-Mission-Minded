@@ -1,28 +1,66 @@
-import { router } from 'expo-router';
-import { Image } from 'expo-image';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Image } from "expo-image";
+import { router } from "expo-router";
+import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 
-import { AppText as Text } from '@/components/app-text';
-import { useMissionaries } from '@/data/missionaries';
-import type { MissionaryDetails } from '@/data/repository';
-import { colors, spacing } from '@/theme/colors';
+import { useMissionaries } from "@/data/missionaries";
+import { colors, spacing } from "@/theme/colors";
+import ameliaPhoto from "../../../assets/images/missionary-amelia.jpg";
+import annabellePhoto from "../../../assets/images/missionary-annabelle.png";
+import miloPhoto from "../../../assets/images/missionary-milo.png";
 
-function MissionaryCard({ missionary }: { missionary: MissionaryDetails }) {
+type InspirationCardData = {
+  id: string;
+  missionaryName: string;
+  image: number;
+};
+
+const inspirationCards = [
+  {
+    id: "amelia-baker",
+    missionaryName: "Sister Amelia Baker",
+    image: ameliaPhoto,
+  },
+  {
+    id: "annabelle-baker",
+    missionaryName: "Sister Annabelle Baker",
+    image: annabellePhoto,
+  },
+  {
+    id: "milo-thatch",
+    missionaryName: "Elder Milo Thatch",
+    image: miloPhoto,
+  },
+] satisfies InspirationCardData[];
+
+function normalizeMissionaryName(name: string): string {
+  return name.toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+function InspirationCard({
+  card,
+  missionaryId,
+}: {
+  card: InspirationCardData;
+  missionaryId?: string;
+}) {
   return (
     <Pressable
       accessibilityRole="button"
-      onPress={() => router.push({ pathname: '/missionary/[id]', params: { id: missionary.id } })}
-      accessibilityLabel={`${missionary.name}. View details.`}
-      style={({ pressed }) => [styles.missionaryCard, pressed && styles.missionaryCardPressed]}>
-      <View style={styles.missionaryHeading}>
-        <View style={styles.missionaryCopy}>
-          <Text style={styles.missionaryName}>{missionary.name}</Text>
-          <Text style={styles.missionName}>
-            {missionary.missionName}
-          </Text>
-        </View>
-        <Text accessibilityElementsHidden style={styles.cardArrow}>›</Text>
-      </View>
+      accessibilityLabel={`Open ${card.missionaryName}'s missionary page`}
+      accessibilityState={{ disabled: !missionaryId }}
+      disabled={!missionaryId}
+      onPress={() => {
+        if (missionaryId) {
+          router.push({ pathname: "/missionary/[id]", params: { id: missionaryId } });
+        }
+      }}
+      style={({ pressed }) => [styles.card, pressed && styles.cardPressed, !missionaryId && styles.cardUnavailable]}
+    >
+      <Image
+        source={card.image}
+        style={[StyleSheet.absoluteFill, styles.cardImage]}
+        contentFit="cover"
+      />
     </Pressable>
   );
 }
@@ -31,38 +69,39 @@ export default function HomeScreen() {
   const { missionaries } = useMissionaries();
 
   return (
-    <ScrollView
-      style={styles.screen}
-      contentContainerStyle={styles.scrollContent}
-      showsVerticalScrollIndicator={false}>
-      <View style={styles.content}>
-        <View style={styles.brandHeader}>
-          <Image
-            source={require('../../../assets/images/missionminded-fulltextlogo.png')}
-            style={styles.brandLogo}
-            contentFit="cover"
-            accessibilityLabel="MissionMinded logo"
-          />
-        </View>
-
-        <View style={styles.missionariesSection}>
-          <View style={styles.sectionHeading}>
-            <Text style={styles.sectionEyebrow}>YOUR MISSIONARIES</Text>
-          </View>
-          <View style={styles.cardList}>
-            {missionaries.map((missionary) => (
-              <MissionaryCard key={missionary.id} missionary={missionary} />
-            ))}
-          </View>
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => router.push('/add-missionary')}
-            style={({ pressed }) => [styles.addButton, pressed && styles.missionaryCardPressed]}>
-            <Text style={styles.addButtonText}>+ Add a Missionary</Text>
-          </Pressable>
-        </View>
+    <View style={styles.screen}>
+      <View style={styles.brandHeader}>
+        <Image
+          source={require("../../../assets/images/missionminded-fulltextlogo.png")}
+          style={styles.brandLogo}
+          contentFit="cover"
+          accessibilityLabel="MissionMinded logo"
+        />
       </View>
-    </ScrollView>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.content}>
+          <View style={styles.inspirationSection}>
+            <View style={styles.cardGrid}>
+              {inspirationCards.map((card) => (
+                <InspirationCard
+                  key={card.id}
+                  card={card}
+                  missionaryId={missionaries.find((missionary) =>
+                    normalizeMissionaryName(missionary.name) === normalizeMissionaryName(card.missionaryName)
+                    || normalizeMissionaryName(`${missionary.title} ${missionary.firstName} ${missionary.lastName}`)
+                      === normalizeMissionaryName(card.missionaryName),
+                  )?.id}
+                />
+              ))}
+            </View>
+          </View>
+        </View>
+      </ScrollView>
+    </View>
   );
 }
 
@@ -71,89 +110,52 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.brandSurface,
   },
+  scroll: {
+    flex: 1,
+  },
   scrollContent: {
     flexGrow: 1,
     paddingHorizontal: spacing.lg,
-    paddingTop: spacing.xl,
+    paddingTop: 0,
     paddingBottom: spacing.xxl,
   },
   content: {
-    width: '100%',
-    maxWidth: 480,
-    alignSelf: 'center',
-    gap: spacing.lg,
+    width: "100%",
+    maxWidth: 1120,
+    alignSelf: "center",
+    gap: spacing.xl,
   },
   brandHeader: {
-    alignItems: 'center',
-    justifyContent: 'center',
+    width: "100%",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 40, 
+    marginBottom: spacing.xl,
   },
   brandLogo: {
-    width: '100%',
-    height: 88,
+    width: "95%",
+    aspectRatio: 8,
   },
-  sectionEyebrow: {
-    color: colors.textSecondary,
-    fontSize: 12,
-    fontWeight: '700',
-    letterSpacing: 0.8,
+  inspirationSection: {
+    gap: spacing.lg,
   },
-  missionariesSection: {
+  cardGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: spacing.md,
   },
-  sectionHeading: {
-    gap: spacing.xs,
+  card: {
+    flexGrow: 1,
+    flexBasis: 280,
+    minWidth: 260,
+    height: 190,
+    overflow: "hidden",
+    borderRadius: 20,
+    backgroundColor: colors.navy,
   },
-  cardList: {
-    gap: spacing.md,
-  },
-  missionaryCard: {
-    gap: spacing.md,
-    padding: spacing.lg,
-    borderWidth: 1,
-    borderColor: '#D6DEE6',
-    borderRadius: 16,
-    backgroundColor: colors.white,
-  },
-  missionaryHeading: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: spacing.md,
-  },
-  missionaryCopy: {
-    flex: 1,
-    gap: spacing.xs,
-  },
-  cardArrow: {
-    color: colors.navy,
-    fontSize: 28,
-    lineHeight: 28,
-    marginTop: -4,
-  },
-  missionaryCardPressed: {
-    opacity: 0.82,
-  },
-  missionaryName: {
-    color: colors.navy,
-    fontSize: 17,
-    fontWeight: '700',
-  },
-  missionName: {
-    color: colors.textSecondary,
-    fontSize: 14,
-  },
-  addButton: {
-    minHeight: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    borderColor: colors.navy,
-    borderRadius: 12,
-  },
-  addButtonText: {
-    color: colors.navy,
-    fontSize: 14,
-    fontWeight: '600',
+  cardPressed: { opacity: 0.88 },
+  cardUnavailable: { opacity: 0.7 },
+  cardImage: {
+    borderRadius: 20,
   },
 });
