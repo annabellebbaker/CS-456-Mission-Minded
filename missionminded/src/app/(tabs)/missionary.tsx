@@ -6,62 +6,9 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { AppText as Text } from '@/components/app-text';
 import { MissionDetails } from '@/components/mission-details';
 import { MissionaryPicker } from '@/components/missionary-picker';
+import { getMissionFlagUrl } from '@/data/mission-regions';
 import { useMissionaries } from '@/data/missionaries';
 import { colors, spacing } from '@/theme/colors';
-
-const stateFlagCodes: Record<string, string> = {
-  alabama: 'al', alaska: 'ak', arizona: 'az', arkansas: 'ar', california: 'ca',
-  colorado: 'co', connecticut: 'ct', delaware: 'de', florida: 'fl', georgia: 'ga',
-  hawaii: 'hi', idaho: 'id', illinois: 'il', indiana: 'in', iowa: 'ia', kansas: 'ks',
-  kentucky: 'ky', louisiana: 'la', maine: 'me', maryland: 'md', massachusetts: 'ma',
-  michigan: 'mi', minnesota: 'mn', mississippi: 'ms', missouri: 'mo', montana: 'mt',
-  nebraska: 'ne', nevada: 'nv', 'new hampshire': 'nh', 'new jersey': 'nj',
-  'new mexico': 'nm', 'new york': 'ny', 'north carolina': 'nc', 'north dakota': 'nd',
-  ohio: 'oh', oklahoma: 'ok', oregon: 'or', pennsylvania: 'pa', 'rhode island': 'ri',
-  'south carolina': 'sc', 'south dakota': 'sd', tennessee: 'tn', texas: 'tx', utah: 'ut',
-  vermont: 'vt', virginia: 'va', washington: 'wa', 'west virginia': 'wv', wisconsin: 'wi',
-  wyoming: 'wy',
-};
-
-const countryFlagCodes: Record<string, string> = {
-  adriatic: 'hr', albania: 'al', alpine: 'at', argentina: 'ar', armenia: 'am',
-  australia: 'au', austria: 'at', baltic: 'ee', barbados: 'bb', belgium: 'be',
-  'belgium netherlands': 'be', benin: 'bj', bolivia: 'bo', botswana: 'bw',
-  brazil: 'br', bulgaria: 'bg', cambodia: 'kh', cameroon: 'cm', 'cape town': 'za',
-  cape: 'za', chile: 'cl', china: 'cn', colombia: 'co', 'costa rica': 'cr',
-  'cote d ivoire': 'ci', cuba: 'cu', 'czech slovak': 'cz', 'czech republic': 'cz',
-  'democratic republic': 'cd', 'dominican republic': 'do', ecuador: 'ec',
-  'el salvador': 'sv', england: 'gb-eng', ethiopia: 'et', europe: 'eu', fiji: 'fj',
-  finland: 'fi', france: 'fr', germany: 'de', ghana: 'gh', greece: 'gr', guatemala: 'gt',
-  guyana: 'gy', haiti: 'ht', honduras: 'hn', 'hong kong': 'hk', hungary: 'hu',
-  india: 'in', indonesia: 'id', ireland: 'ie', israel: 'il', italy: 'it', jamaica: 'jm',
-  japan: 'jp', kenya: 'ke', korea: 'kr', liberia: 'lr', madagascar: 'mg', malawi: 'mw',
-  'marshall islands': 'mh', mexico: 'mx', micronesia: 'fm', mongolia: 'mn',
-  mozambique: 'mz', nepal: 'np', netherlands: 'nl', 'new zealand': 'nz', nicaragua: 'ni',
-  nigeria: 'ng', norway: 'no', pakistan: 'pk', panama: 'pa', 'papua new guinea': 'pg',
-  paraguay: 'py', peru: 'pe', philippines: 'ph', poland: 'pl', portugal: 'pt',
-  'puerto rico': 'pr', 'republic of congo': 'cg', romania: 'ro', russia: 'ru', rwanda: 'rw',
-  samoa: 'ws', scotland: 'gb-sct', senegal: 'sn', 'sierra leone': 'sl', singapore: 'sg',
-  'solomon islands': 'sb', 'south africa': 'za', 'south korea': 'kr', spain: 'es',
-  sweden: 'se', switzerland: 'ch', tahiti: 'pf', taiwan: 'tw', tanzania: 'tz',
-  thailand: 'th', togo: 'tg', tonga: 'to', turkey: 'tr', uganda: 'ug', ukraine: 'ua',
-  'united kingdom': 'gb', uruguay: 'uy', vanuatu: 'vu', venezuela: 've', vietnam: 'vn',
-  zambia: 'zm', zimbabwe: 'zw', canada: 'ca',
-};
-
-function getMissionFlagUrl(missionName: string, missionId: string): string | undefined {
-  const normalizedName = missionName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-z ]/g, ' ').replace(/\s+/g, ' ').trim();
-  if (missionId === 'alaska-anchorage' || normalizedName.startsWith('alaska ')) {
-    return 'https://flagcdn.com/w640/us-ak.png';
-  }
-  const stateName = Object.keys(stateFlagCodes).sort((a, b) => b.length - a.length)
-    .find((state) => normalizedName.startsWith(`${state} `));
-  const countryName = Object.keys(countryFlagCodes).sort((a, b) => b.length - a.length)
-    .find((country) => normalizedName.startsWith(`${country} `));
-  const code = stateName ? `us-${stateFlagCodes[stateName]}` : countryName ? countryFlagCodes[countryName] : undefined;
-  return code ? `https://flagcdn.com/w640/${code}.png` : undefined;
-}
 
 export default function MissionaryTabScreen() {
   const { missionaries, getById, selectedId, deleteMissionary } = useMissionaries();
@@ -107,14 +54,26 @@ export default function MissionaryTabScreen() {
 
         <View style={styles.headerCard}>
           {flagUrl && (
-            <Image
-              accessibilityLabel={`${missionary.missionName} flag background`}
-              source={{ uri: flagUrl }}
-              contentFit="cover"
-              style={styles.flagImage}
-            />
+            <>
+              {/* Blurred fill so the card has no empty bars around the full flag. */}
+              <Image
+                accessible={false}
+                source={{ uri: flagUrl }}
+                contentFit="cover"
+                blurRadius={18}
+                style={styles.flagBackdrop}
+              />
+              <View pointerEvents="none" style={styles.headerCardScrim} />
+              {/* Zoomed out: the whole flag is visible instead of a cropped center. */}
+              <Image
+                accessibilityLabel={`${missionary.missionName} flag`}
+                source={{ uri: flagUrl }}
+                contentFit="contain"
+                transition={150}
+                style={styles.flagImage}
+              />
+            </>
           )}
-          <View pointerEvents="none" style={styles.headerCardScrim} />
         </View>
 
         <Text style={styles.eyebrow}>MISSION DETAILS</Text>
@@ -181,8 +140,9 @@ const styles = StyleSheet.create({
   content: { width: '100%', maxWidth: 480, alignSelf: 'center', gap: spacing.md },
   pageTitle: { color: colors.navy, fontSize: 27, fontWeight: '700' },
   caption: { color: colors.textSecondary, fontSize: 14 },
-  headerCard: { position: 'relative', overflow: 'hidden', minHeight: 142, borderRadius: 16, backgroundColor: colors.navy },
-  flagImage: { ...StyleSheet.absoluteFill },
+  headerCard: { position: 'relative', overflow: 'hidden', height: 168, borderRadius: 16, backgroundColor: colors.navy },
+  flagBackdrop: { ...StyleSheet.absoluteFill, transform: [{ scale: 1.15 }] },
+  flagImage: { position: 'absolute', top: spacing.lg, bottom: spacing.lg, left: spacing.lg, right: spacing.lg },
   headerCardScrim: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(14, 31, 54, 0.45)' },
   eyebrow: { marginTop: spacing.xs, color: colors.textSecondary, fontSize: 12, fontWeight: '700', letterSpacing: 0.8 },
   journeyButton: {

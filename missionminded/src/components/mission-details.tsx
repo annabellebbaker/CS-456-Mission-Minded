@@ -1,8 +1,9 @@
-import { Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
 import { AppText as Text } from '@/components/app-text';
 import { MissionMap } from '@/components/mission-map';
-import { getMissionBoundary, type MissionaryDetails } from '@/data/repository';
+import { useMissionBoundary } from '@/data/mission-boundary-loader';
+import type { MissionaryDetails } from '@/data/repository';
 import { colors, spacing } from '@/theme/colors';
 
 const unavailableDetail = "Some details aren't released yet.";
@@ -19,15 +20,22 @@ function DetailValue({ label, value }: { label: string; value: string | null }) 
 /** Map, companion, area, leaders and mission office. Used on the Missionary tab and the journey page. */
 export function MissionDetails({ missionary }: { missionary: MissionaryDetails }) {
   const details = missionary.missionDetails;
-  const boundary = getMissionBoundary(missionary.missionId);
+  const boundaryState = useMissionBoundary(missionary.missionId, missionary.missionName);
 
   return (
     <View style={styles.detailsContent}>
-      {boundary ? (
-        <MissionMap boundary={boundary} />
+      {boundaryState.status === 'ready' ? (
+        <MissionMap boundary={boundaryState.boundary} />
       ) : (
-        <View style={styles.mapPlaceholder}>
-          <Text style={styles.mutedText}>Map coming soon for this mission.</Text>
+        <View
+          accessibilityLiveRegion="polite"
+          style={[styles.mapPlaceholder, boundaryState.status === 'loading' && styles.mapLoading]}>
+          {boundaryState.status === 'loading' && <ActivityIndicator color={colors.navy} />}
+          <Text style={styles.mutedText}>
+            {boundaryState.status === 'loading'
+              ? `Loading the ${missionary.missionName || 'mission'} map…`
+              : "We couldn't find a map for this mission yet."}
+          </Text>
         </View>
       )}
       <View style={styles.detailGrid}>
@@ -68,8 +76,10 @@ export function MissionDetails({ missionary }: { missionary: MissionaryDetails }
 const styles = StyleSheet.create({
   detailsContent: { gap: spacing.md },
   mutedText: { color: colors.textSecondary, fontSize: 13, lineHeight: 19 },
+  mapLoading: { height: 220, gap: spacing.sm },
   mapPlaceholder: {
     height: 140,
+    paddingHorizontal: spacing.lg,
     overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
