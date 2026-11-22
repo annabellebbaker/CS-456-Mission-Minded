@@ -57,5 +57,27 @@ export function getFirebaseFirestore() {
 }
 
 export function getFirebaseStorage() {
-  return getStorage(getFirebaseApp());
+  const storage = getStorage(getFirebaseApp());
+  // Firebase retries failed uploads for up to 10 minutes by default, which looks like a
+  // frozen "Saving…" button. Give up after 20 seconds so the form can show an error.
+  storage.maxUploadRetryTime = 20_000;
+  storage.maxOperationRetryTime = 20_000;
+  return storage;
+}
+
+/** Rejects if `promise` takes longer than `ms`, so a stalled Firebase call can't hang the UI. */
+export function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(message)), ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
 }

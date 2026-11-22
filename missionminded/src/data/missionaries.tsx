@@ -1,9 +1,9 @@
-import { arrayUnion, collection, deleteDoc, deleteField, doc, onSnapshot, setDoc, updateDoc } from 'firebase/firestore';
-import { deleteObject, getDownloadURL, ref, uploadBytes } from 'firebase/storage';
+import { collection, deleteDoc, deleteField, doc, onSnapshot, setDoc, updateDoc } from 'firebase/firestore';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 
 import { PREVIEW_USER_ID, useAuth } from '@/data/auth';
-import { getFirebaseFirestore, getFirebaseStorage } from '@/data/firebase';
+import { getFirebaseFirestore, withTimeout } from '@/data/firebase';
+import { deletePhoto, savePhoto, type PickedPhoto } from '@/data/photo-store';
 import {
   buildMissionary,
   ensureCoreTimelineMoments,
@@ -12,6 +12,8 @@ import {
   type MissionaryForm,
   missionPhases,
   type MissionaryUpdate,
+  MAX_UPDATE_PHOTOS,
+  type UpdateImage,
   type GrowingTogetherItem,
   type PhaseMoment,
   type MissionPhase,
@@ -25,7 +27,7 @@ type MissionariesContextValue = {
   addUpdate: (missionaryId: string, update: {
     title: string;
     body: string;
-    photo?: { uri: string; mimeType?: string | null };
+    photos?: UpdatePhotoInput[];
   }) => Promise<void>;
   updateMissionary: (missionaryId: string, form: MissionaryForm) => Promise<void>;
   deleteMissionary: (missionaryId: string) => Promise<void>;
@@ -41,6 +43,9 @@ type MissionariesContextValue = {
   selectedId: string;
   setSelectedId: (id: string) => void;
 };
+
+/** A photo picked on the device, before it is saved. */
+export type UpdatePhotoInput = PickedPhoto;
 
 type MissionariesData = {
   userId: string | null;
@@ -71,27 +76,12 @@ function asString(value: unknown, fallback = ''): string {
   return typeof value === 'string' ? value : fallback;
 }
 
-function blobFromUri(uri: string): Promise<Blob> {
-  return new Promise((resolve, reject) => {
-    const request = new XMLHttpRequest();
-    request.onload = () => {
-      if (request.status === 0 || (request.status >= 200 && request.status < 300)) {
-        resolve(request.response as Blob);
-      } else {
-        reject(new Error('Could not read the selected photo.'));
-      }
-    };
-    request.onerror = () => reject(new Error('Could not read the selected photo.'));
-    request.responseType = 'blob';
-    request.open('GET', uri, true);
-    request.send(null);
-  });
-}
+export { PHOTO_TOO_LARGE, PHOTO_UPLOAD_FAILED } from '@/data/photo-store';
+export const DATABASE_TIMEOUT = 'database-timeout';
 
-function getImageExtension(mimeType: string): string {
-  const subtype = mimeType.split('/')[1]?.toLowerCase().split(';')[0];
-  if (!subtype) return 'jpg';
-  return subtype === 'jpeg' ? 'jpg' : subtype.replace(/[^a-z0-9]/g, '') || 'jpg';
+/** Firestore waits for the server before resolving a write; don't let that wait forever. */
+function saveWithTimeout<T>(promise: Promise<T>) {
+  return withTimeout(promise, 20_000, DATABASE_TIMEOUT);
 }
 
 function isMissionPhase(value: unknown): value is MissionPhase {
@@ -186,14 +176,25 @@ function normalizeMissionary(id: string, value: unknown): MissionaryDetails {
     const item = asRecord(entry);
     const body = asString(item.body).trim();
     const date = asString(item.date);
+    const images: UpdateImage[] = Array.isArray(item.images)
+      ? item.images.flatMap((image) => {
+        const value = asRecord(image);
+        const url = asString(value.url);
+        return url ? [{ url, ...(asString(value.path) ? { path: asString(value.path) } : {}) }] : [];
+      })
+      : [];
+    // Fourth-prototype posts saved a single imageUrl. Fold it into the images list.
+    const legacyUrl = asString(item.imageUrl);
+    if (legacyUrl && !images.some((image) => image.url === legacyUrl)) {
+      images.unshift({ url: legacyUrl, ...(asString(item.imagePath) ? { path: asString(item.imagePath) } : {}) });
+    }
     return body && date ? [{
       id: asString(item.id, `${id}-update-${index}`),
       title: asString(item.title).trim(),
       body,
       date,
       author: asString(item.author, 'Supporter'),
-      ...(asString(item.imageUrl) ? { imageUrl: asString(item.imageUrl) } : {}),
-      ...(asString(item.imagePath) ? { imagePath: asString(item.imagePath) } : {}),
+      ...(images.length ? { images } : {}),
     } satisfies MissionaryUpdate] : [];
   });
   return {
@@ -204,6 +205,8 @@ function normalizeMissionary(id: string, value: unknown): MissionaryDetails {
     firstName,
     lastName,
     relationship: asString(raw.relationship, 'Supporter'),
+    ...(asString(raw.photoUrl) ? { photoUrl: asString(raw.photoUrl) } : {}),
+    ...(asString(raw.photoPath) ? { photoPath: asString(raw.photoPath) } : {}),
     missionName: asString(raw.missionName, 'Mission not yet known'),
     missionLength,
     missionId: asString(raw.missionId),
@@ -295,13 +298,22 @@ export function MissionariesProvider({ children }: { children: ReactNode }) {
 
   const addMissionary = useCallback(async (form: MissionaryForm) => {
     if (!user) throw new Error('Sign in to add a missionary.');
-    const missionary = buildMissionary(form);
+    let missionary = buildMissionary(form);
     if (user.id === PREVIEW_USER_ID) {
+      if (form.photo) missionary = { ...missionary, photoUrl: form.photo.uri };
       setData((current) => ({ ...current, missionaries: [...current.missionaries, missionary] }));
       return missionary;
     }
+    const saved = form.photo ? await savePhoto(user.id, form.photo) : null;
+    if (saved) missionary = { ...missionary, photoUrl: saved.url, photoPath: saved.path };
     const reference = doc(getFirebaseFirestore(), 'users', user.id, 'missionaries', missionary.id);
-    await setDoc(reference, omitUndefined(missionary) as Record<string, unknown>);
+    try {
+      await saveWithTimeout(setDoc(reference, omitUndefined(missionary) as Record<string, unknown>));
+    } catch (error) {
+      console.warn('Saving the missionary to Firestore failed.', error);
+      await deletePhoto(saved?.path);
+      throw error;
+    }
     setData((current) => current.userId === user.id
       ? { ...current, missionaries: [...current.missionaries.filter((item) => item.id !== missionary.id), missionary] }
       : current);
@@ -311,32 +323,36 @@ export function MissionariesProvider({ children }: { children: ReactNode }) {
   const addUpdate = useCallback(async (missionaryId: string, update: {
     title: string;
     body: string;
-    photo?: { uri: string; mimeType?: string | null };
+    photos?: UpdatePhotoInput[];
   }) => {
     if (!user) throw new Error('Sign in to post an update.');
     const missionary = missionaries.find((item) => item.id === missionaryId);
     if (!missionary) throw new Error('Missionary not found.');
+    const photos = (update.photos ?? []).slice(0, MAX_UPDATE_PHOTOS);
     const now = new Date();
     const date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
     const id = `${missionaryId}-update-${now.getTime()}-${Math.random().toString(36).slice(2, 8)}`;
-    const mimeType = update.photo?.mimeType?.startsWith('image/') ? update.photo.mimeType : 'image/jpeg';
-    let photoRef: ReturnType<typeof ref> | null = null;
-    let imageUrl: string | undefined;
-    let imagePath: string | undefined;
+    const isPreview = user.id === PREVIEW_USER_ID;
+    const savedPaths: string[] = [];
+    const removeSaved = () => Promise.all(savedPaths.map((path) => deletePhoto(path)));
 
-    if (update.photo && user.id !== PREVIEW_USER_ID) {
-      imagePath = `missionUpdates/${user.id}/${missionaryId}/${id}/photo.${getImageExtension(mimeType)}`;
-      photoRef = ref(getFirebaseStorage(), imagePath);
-      const photoBlob = await blobFromUri(update.photo.uri);
+    let images: UpdateImage[] = [];
+    if (isPreview) {
+      // Preview mode never touches Firebase; show the local files directly.
+      images = photos.map((photo) => ({ url: photo.uri }));
+    } else if (photos.length) {
       try {
-        await uploadBytes(photoRef, photoBlob, { contentType: mimeType });
-        imageUrl = await getDownloadURL(photoRef);
+        // One at a time keeps memory low while photos are shrunk.
+        for (const photo of photos) {
+          const saved = await savePhoto(user.id, photo);
+          savedPaths.push(saved.path);
+          images.push(saved);
+        }
       } catch (error) {
-        await deleteObject(photoRef).catch(() => undefined);
+        // Don't leave orphaned photos behind if any one fails.
+        await removeSaved();
         throw error;
       }
-    } else if (update.photo) {
-      imageUrl = update.photo.uri;
     }
 
     const item: MissionaryUpdate = {
@@ -345,10 +361,9 @@ export function MissionariesProvider({ children }: { children: ReactNode }) {
       body: update.body.trim(),
       date,
       author: user.name || 'You',
-      ...(imageUrl ? { imageUrl } : {}),
-      ...(imagePath ? { imagePath } : {}),
+      ...(images.length ? { images } : {}),
     };
-    if (user.id === PREVIEW_USER_ID) {
+    if (isPreview) {
       setData((current) => ({
         ...current,
         missionaries: current.missionaries.map((existing) => existing.id === missionaryId
@@ -359,12 +374,13 @@ export function MissionariesProvider({ children }: { children: ReactNode }) {
     }
     const reference = doc(getFirebaseFirestore(), 'users', user.id, 'missionaries', missionaryId);
     try {
-      await updateDoc(reference, {
-        updates: arrayUnion(...missionary.updates, item),
+      await saveWithTimeout(updateDoc(reference, {
+        // Write the normalized list so legacy single-photo posts are saved in the new `images` shape.
+        updates: omitUndefined([...missionary.updates, item]),
         journal: deleteField(),
-      });
+      }));
     } catch (error) {
-      if (photoRef) await deleteObject(photoRef).catch(() => undefined);
+      await removeSaved();
       throw error;
     }
   }, [missionaries, user]);
@@ -393,18 +409,47 @@ export function MissionariesProvider({ children }: { children: ReactNode }) {
       missionId: form.missionId?.trim() ?? '',
       missionLength: form.missionLength,
       moments,
+      ...(form.missionDetails ? { missionDetails: form.missionDetails } : {}),
     };
-    if (user.id !== PREVIEW_USER_ID) {
-      await updateDoc(
-        doc(getFirebaseFirestore(), 'users', user.id, 'missionaries', missionaryId),
-        {
-          ...omitUndefined(updated) as Record<string, unknown>,
-          journal: deleteField(),
-          mainSupporter: deleteField(),
-          isMainFollower: deleteField(),
-          isMainSupporter: deleteField(),
-        },
-      );
+    const area = updated.missionDetails.area?.trim();
+    if (updated.phase === 'serving') updated.status = area ? `Serving in ${area}` : 'Serving';
+    const isPreview = user.id === PREVIEW_USER_ID;
+    let newPhotoPath: string | undefined;
+    if (form.photo === null) {
+      delete updated.photoUrl;
+      delete updated.photoPath;
+    } else if (form.photo) {
+      if (isPreview) {
+        updated.photoUrl = form.photo.uri;
+      } else {
+        const saved = await savePhoto(user.id, form.photo);
+        updated.photoUrl = saved.url;
+        updated.photoPath = saved.path;
+        newPhotoPath = saved.path;
+      }
+    }
+    if (!isPreview) {
+      try {
+        await saveWithTimeout(updateDoc(
+          doc(getFirebaseFirestore(), 'users', user.id, 'missionaries', missionaryId),
+          {
+            ...omitUndefined(updated) as Record<string, unknown>,
+            ...(form.photo === null ? { photoUrl: deleteField(), photoPath: deleteField() } : {}),
+            journal: deleteField(),
+            mainSupporter: deleteField(),
+            isMainFollower: deleteField(),
+            isMainSupporter: deleteField(),
+          },
+        ));
+      } catch (error) {
+        console.warn('Saving the missionary to Firestore failed.', error);
+        await deletePhoto(newPhotoPath);
+        throw error;
+      }
+      // Clean up the replaced or removed photo only after the save succeeded.
+      if (form.photo !== undefined && existing.photoPath !== updated.photoPath) {
+        await deletePhoto(existing.photoPath);
+      }
     }
     setData((current) => current.userId === user.id
       ? { ...current, missionaries: current.missionaries.map((item) => item.id === missionaryId ? updated : item) }
@@ -414,12 +459,14 @@ export function MissionariesProvider({ children }: { children: ReactNode }) {
   const deleteMissionary = useCallback(async (missionaryId: string) => {
     if (!user) throw new Error('Sign in to delete a missionary.');
     if (user.id !== PREVIEW_USER_ID) {
+      const photoPath = missionaries.find((item) => item.id === missionaryId)?.photoPath;
       await deleteDoc(doc(getFirebaseFirestore(), 'users', user.id, 'missionaries', missionaryId));
+      await deletePhoto(photoPath);
     }
     setData((current) => current.userId === user.id
       ? { ...current, missionaries: current.missionaries.filter((item) => item.id !== missionaryId) }
       : current);
-  }, [user]);
+  }, [missionaries, user]);
 
   const updatePhaseMoment = useCallback(async (missionaryId: string, phase: MissionPhase, title: string, details: {
     date: string;

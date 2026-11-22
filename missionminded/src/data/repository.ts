@@ -24,13 +24,26 @@ export type GrowingTogetherItem = {
   description: string;
 };
 
+/** A photo stored in Firebase Storage. `path` lets us delete it later. */
+export type UpdateImage = {
+  url: string;
+  path?: string;
+};
+
+/** Most photos a single update can hold. */
+export const MAX_UPDATE_PHOTOS = 6;
+
 /** An update a supporter posts for others to read. */
 export type MissionaryUpdate = {
   id: string;
   title: string;
   /** The post caption. */
   body: string;
+  /** Photos attached to the post, in the order the supporter picked them. */
+  images?: UpdateImage[];
+  /** @deprecated Single-photo field from the fourth prototype. Read into `images`. */
   imageUrl?: string;
+  /** @deprecated Single-photo field from the fourth prototype. Read into `images`. */
   imagePath?: string;
   /** YYYY-MM-DD */
   date: string;
@@ -48,9 +61,13 @@ export type MissionaryDetails = {
   lastName: string;
   /** How the signed-in supporter is related, like "Brother" or "Cousin". */
   relationship: string;
+  /** Uploaded missionary photo (Firebase Storage download URL). Shown on the home page card. */
+  photoUrl?: string;
+  /** Storage path of `photoUrl`, so the old file can be deleted when the photo changes. */
+  photoPath?: string;
   missionName: string;
   missionLength: string;
-  /** Key into mission-boundaries.json. Regenerate with `npm run boundaries`. */
+  /** Mission catalog ID. Used to look up the boundary map (bundled or loaded on demand). */
   missionId: string;
   phase: MissionPhase;
   /** When the current phase started, like "Since September". */
@@ -275,6 +292,10 @@ export type MissionaryForm = {
   assignedDate: Date;
   mtcDate: Date;
   missionLength: string;
+  /** Optional details the supporter knows, like companion and area. Blank fields are saved as null. */
+  missionDetails?: MissionaryDetails['missionDetails'];
+  /** A newly picked photo to upload. Leave undefined to keep the current photo; null removes it. */
+  photo?: { uri: string; mimeType?: string | null } | null;
 };
 
 export function formatMissionDate(date: Date): string {
@@ -501,7 +522,7 @@ export function buildMissionary(form: MissionaryForm, today = new Date()): Missi
     ponderText: 'By small and simple things are great things brought to pass.',
     ponderReference: 'Alma 37:6',
     updates: [],
-    missionDetails: { companion: null, area: null, leaders: null, office: null, phone: null, email: null },
+    missionDetails: form.missionDetails ?? { companion: null, area: null, leaders: null, office: null, phone: null, email: null },
   });
 }
 
@@ -514,7 +535,11 @@ export type MissionBoundary = {
   geometry: { type: 'MultiPolygon'; coordinates: number[][][][] };
 };
 
-/** Mission outline built from OpenStreetMap admin areas, or undefined if not mapped yet. */
+/**
+ * Hand-curated outline bundled with the app, or undefined. Most missions aren't
+ * bundled: use `useMissionBoundary` / `loadMissionBoundary` from
+ * '@/data/mission-boundary-loader', which falls back to a live lookup.
+ */
 export function getMissionBoundary(missionId: string): MissionBoundary | undefined {
   const missions = missionBoundaries.missions as unknown as Record<string, MissionBoundary>;
   return missions[missionId];
