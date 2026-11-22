@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Image } from 'expo-image';
+import * as ImagePicker from 'expo-image-picker';
 import { router, useLocalSearchParams } from 'expo-router';
 import {
   KeyboardAvoidingView,
@@ -12,7 +14,8 @@ import {
 
 import { AppText as Text, AppTextInput as TextInput } from '@/components/app-text';
 import { getBundledMissionCatalog, loadMissionCatalog, type MissionCatalogEntry } from '@/data/mission-catalog';
-import { useMissionaries } from '@/data/missionaries';
+import { DATABASE_TIMEOUT, PHOTO_TOO_LARGE, PHOTO_UPLOAD_FAILED, useMissionaries } from '@/data/missionaries';
+import { pickerBase64Option, usePhotoUri } from '@/data/photo-store';
 import { colors, spacing } from '@/theme/colors';
 
 const titles = ['Elder', 'Sister'] as const;
@@ -156,7 +159,10 @@ export default function AddMissionaryScreen() {
   const initialMtcDateInput = Number.isNaN(parsedInitialMtcDate.getTime())
     ? ''
     : `${String(parsedInitialMtcDate.getMonth() + 1).padStart(2, '0')}/${String(parsedInitialMtcDate.getDate()).padStart(2, '0')}/${parsedInitialMtcDate.getFullYear()}`;
-  const initialLengthMatch = /^(\d+)\s+(days|months)$/i.exec(missionaryToEdit?.missionLength ?? '');
+  const savedLength = missionaryToEdit?.missionLength ?? '';
+  const savedLengthIsStandard = missionLengths.includes(savedLength as MissionLengthChoice);
+  // "18 months" and "24 months" also match the custom pattern, so only treat other lengths as custom.
+  const initialLengthMatch = savedLengthIsStandard ? null : /^(\d+)\s+(days|months)$/i.exec(savedLength);
   const [title, setTitle] = useState(missionaryToEdit?.title ?? '');
   const [firstName, setFirstName] = useState(missionaryToEdit?.firstName ?? '');
   const [lastName, setLastName] = useState(missionaryToEdit?.lastName ?? '');
@@ -174,7 +180,7 @@ export default function AddMissionaryScreen() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [calendarMonth, setCalendarMonth] = useState(() => new Date(pickerDate.getFullYear(), pickerDate.getMonth(), 1));
   const [missionLength, setMissionLength] = useState<MissionLengthChoice | ''>(
-    initialLengthMatch ? 'Other' : missionLengths.includes(missionaryToEdit?.missionLength as MissionLengthChoice) ? missionaryToEdit?.missionLength as MissionLengthChoice : '',
+    savedLengthIsStandard ? savedLength as MissionLengthChoice : initialLengthMatch ? 'Other' : '',
   );
   const [otherDuration, setOtherDuration] = useState(initialLengthMatch?.[1] ?? '');
   const [otherUnit, setOtherUnit] = useState<DurationUnit | ''>((initialLengthMatch?.[2].toLowerCase() as DurationUnit | undefined) ?? '');
@@ -185,6 +191,43 @@ export default function AddMissionaryScreen() {
   const [errors, setErrors] = useState<Partial<Record<FieldErrorKey, string>>>({});
   const [saveError, setSaveError] = useState('');
   const [saving, setSaving] = useState(false);
+  const savedDetails = missionaryToEdit?.missionDetails;
+  const [companion, setCompanion] = useState(savedDetails?.companion ?? '');
+  const [area, setArea] = useState(savedDetails?.area ?? '');
+  const [leaders, setLeaders] = useState(savedDetails?.leaders ?? '');
+  const [office, setOffice] = useState(savedDetails?.office ?? '');
+  /** undefined = keep the saved photo, null = remove it, an asset = upload this one. */
+  const [photo, setPhoto] = useState<ImagePicker.ImagePickerAsset | null | undefined>(undefined);
+  const [pickingPhoto, setPickingPhoto] = useState(false);
+  const [photoError, setPhotoError] = useState('');
+  const savedPhotoUri = usePhotoUri(missionaryToEdit?.photoUrl);
+  const photoPreviewUri = photo === undefined ? savedPhotoUri : photo?.uri;
+
+  const pickPhoto = async () => {
+    setPhotoError('');
+    setPickingPhoto(true);
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        // Matches the wide home page card.
+        aspect: [3, 2],
+        quality: pickerBase64Option ? 0.5 : 0.8,
+        base64: pickerBase64Option,
+      });
+      if (result.canceled) return;
+      const asset = result.assets[0];
+      if (asset.fileSize && asset.fileSize > 10 * 1024 * 1024) {
+        setPhotoError('Choose a photo smaller than 10 MB.');
+        return;
+      }
+      setPhoto(asset);
+    } catch {
+      setPhotoError('Could not open your photos. Please try again.');
+    } finally {
+      setPickingPhoto(false);
+    }
+  };
 
   const goBack = () => (router.canGoBack() ? router.back() : router.replace('/'));
   const clearErrors = (...keys: FieldErrorKey[]) => {
@@ -259,11 +302,6 @@ export default function AddMissionaryScreen() {
     if (missionLength === 'Other') {
       const duration = Number(otherDuration);
       if (!Number.isInteger(duration) || duration <= 0) nextErrors.otherDuration = errorMessages.otherDuration;
-      else {
-        const duplicateLength = duplicatedStandardMissionLength(duration, otherUnit);
-        if (duplicateLength === 18) nextErrors.otherDuration = errorMessages.otherDuration18;
-        if (duplicateLength === 24) nextErrors.otherDuration = errorMessages.otherDuration24;
-      }
       if (!otherUnit) nextErrors.otherUnit = errorMessages.otherUnit;
     }
 
@@ -273,9 +311,15 @@ export default function AddMissionaryScreen() {
       return;
     }
 
-    const normalizedMissionLength = missionLength === 'Other'
-      ? `${Number(otherDuration)} ${otherUnit}`
-      : missionLength;
+    // A custom length that equals a standard one (like 18 months or 547 days) is saved as the standard choice.
+    const duplicateLength = missionLength === 'Other'
+      ? duplicatedStandardMissionLength(Number(otherDuration), otherUnit)
+      : undefined;
+    const normalizedMissionLength = duplicateLength
+      ? `${duplicateLength} months`
+      : missionLength === 'Other'
+        ? `${Number(otherDuration)} ${otherUnit}`
+        : missionLength;
 
     setSaving(true);
     try {
@@ -289,18 +333,37 @@ export default function AddMissionaryScreen() {
         assignedDate: parsedAssignedDate,
         mtcDate: parsedDate,
         missionLength: normalizedMissionLength,
+        missionDetails: {
+          companion: companion.trim() || null,
+          area: area.trim() || null,
+          leaders: leaders.trim() || null,
+          office: office.trim() || null,
+          // Not editable in the form; keep anything already saved.
+          phone: savedDetails?.phone ?? null,
+          email: savedDetails?.email ?? null,
+        },
+        ...(photo !== undefined ? { photo: photo ? { uri: photo.uri, mimeType: photo.mimeType, base64: photo.base64 } : null } : {}),
       };
       if (editId) {
         await updateMissionary(editId, form);
         setSelectedId(editId);
-        router.replace({ pathname: '/missionary/[id]', params: { id: editId } });
       } else {
         const missionary = await addMissionary(form);
         setSelectedId(missionary.id);
-        router.replace({ pathname: '/missionary/[id]', params: { id: missionary.id } });
       }
-    } catch {
-      setSaveError(errorMessages.save);
+      // Land on the Missionary tab (mission details) with this missionary selected.
+      router.replace('/missionary');
+    } catch (error) {
+      const code = error instanceof Error ? error.message : '';
+      setSaveError(
+        code === PHOTO_TOO_LARGE
+          ? 'That photo is too large to save. Try a smaller photo, or remove it and save without one.'
+          : code === PHOTO_UPLOAD_FAILED
+          ? "The photo couldn't be saved, so nothing was saved. Try again, or remove the photo and save without it."
+          : code === DATABASE_TIMEOUT
+            ? "Couldn't reach the database. Check your connection and try again."
+            : errorMessages.save,
+      );
     } finally {
       setSaving(false);
     }
@@ -322,13 +385,41 @@ export default function AddMissionaryScreen() {
           <View style={styles.card}>
             <View style={styles.photoField}>
               <Text style={styles.label}>Missionary photo (optional)</Text>
-              <View style={styles.photoPlaceholder}>
-                <Text style={styles.photoPlaceholderText}>Photo preview</Text>
+              {photoPreviewUri ? (
+                <Image
+                  accessibilityLabel="Missionary photo preview"
+                  source={{ uri: photoPreviewUri }}
+                  contentFit="cover"
+                  style={styles.photoPreview}
+                />
+              ) : (
+                <View style={styles.photoPlaceholder}>
+                  <Text style={styles.photoPlaceholderText}>No photo yet</Text>
+                </View>
+              )}
+              <View style={styles.photoActions}>
+                <Pressable
+                  accessibilityRole="button"
+                  disabled={pickingPhoto || saving}
+                  onPress={() => void pickPhoto()}
+                  style={({ pressed }) => [styles.photoButton, styles.photoButtonFlex, pressed && styles.pressed, (pickingPhoto || saving) && styles.disabled]}>
+                  <Text style={styles.photoButtonText}>
+                    {pickingPhoto ? 'Opening photos...' : photoPreviewUri ? 'Change photo' : 'Choose a photo'}
+                  </Text>
+                </Pressable>
+                {!!photoPreviewUri && (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Remove missionary photo"
+                    disabled={saving}
+                    onPress={() => setPhoto(null)}
+                    style={({ pressed }) => [styles.photoButton, styles.removePhotoButton, pressed && styles.pressed]}>
+                    <Text style={styles.removePhotoText}>Remove</Text>
+                  </Pressable>
+                )}
               </View>
-              <View style={[styles.photoButton, styles.disabled]}>
-                <Text style={styles.photoButtonText}>Photo upload coming soon</Text>
-              </View>
-              <Text style={styles.hint}>Photo upload setup will be added later.</Text>
+              {!!photoError && <Text accessibilityRole="alert" style={styles.error}>{photoError}</Text>}
+              <Text style={styles.hint}>Shown on the home page with their countdown.</Text>
             </View>
             <DropdownField
               label="Title *"
@@ -583,6 +674,22 @@ export default function AddMissionaryScreen() {
               </>
             )}
 
+            <View style={styles.sectionDivider} />
+            <View style={styles.sectionHeading}>
+              <Text style={styles.sectionTitle}>Mission details (optional)</Text>
+              <Text style={styles.hint}>Fill in what you know. You can come back and add the rest as {firstName.trim() || 'they'} share{firstName.trim() ? 's' : ''} it.</Text>
+            </View>
+            <View style={styles.fieldRow}>
+              <View style={styles.fieldRowItem}>
+                <Field label="Companion" value={companion} onChangeText={setCompanion} placeholder="Sister Lopez" autoCapitalize="words" />
+              </View>
+              <View style={styles.fieldRowItem}>
+                <Field label="Area" value={area} onChangeText={setArea} placeholder="Wasilla" autoCapitalize="words" />
+              </View>
+            </View>
+            <Field label="Mission leaders" value={leaders} onChangeText={setLeaders} placeholder="President and Sister Smith" autoCapitalize="words" />
+            <Field label="Mission office address" value={office} onChangeText={setOffice} placeholder="Street, city" />
+
             {!!saveError && <Text accessibilityRole="alert" style={styles.error}>{saveError}</Text>}
 
             <Pressable accessibilityRole="button" disabled={saving} onPress={() => void save()} style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed, saving && styles.disabled]}>
@@ -614,9 +721,14 @@ const styles = StyleSheet.create({
   mutedText: { color: colors.textSecondary, fontSize: 14, lineHeight: 20 },
   card: { gap: spacing.lg, padding: spacing.lg, borderWidth: 1, borderColor: '#D6DEE6', borderRadius: 16 },
   photoField: { gap: spacing.sm },
+  photoPreview: { width: '100%', aspectRatio: 3 / 2, borderRadius: 12, backgroundColor: '#F4F6F8' },
+  photoActions: { flexDirection: 'row', gap: spacing.sm },
+  photoButtonFlex: { flex: 1 },
+  removePhotoButton: { borderColor: '#A12626' },
+  removePhotoText: { color: '#A12626', fontSize: 14, fontWeight: '700' },
   photoPlaceholder: {
-    width: 144,
-    height: 144,
+    width: '100%',
+    aspectRatio: 3 / 2,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
@@ -676,6 +788,11 @@ const styles = StyleSheet.create({
   calendarIcon: { width: 17, height: 17, overflow: 'hidden', borderWidth: 1.5, borderColor: colors.navy, borderRadius: 3 },
   calendarIconHeader: { height: 5, borderBottomWidth: 1.5, borderBottomColor: colors.navy, backgroundColor: '#EAF2F8' },
   hint: { color: colors.textSecondary, fontSize: 12 },
+  sectionDivider: { height: 1, backgroundColor: '#E3E8EE' },
+  sectionHeading: { gap: spacing.xs },
+  sectionTitle: { color: colors.navy, fontSize: 16, fontWeight: '700' },
+  fieldRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
+  fieldRowItem: { flexGrow: 1, flexBasis: 180 },
   dropdown: {
     minHeight: 46,
     flexDirection: 'row',
